@@ -1,94 +1,66 @@
 import asyncio
+from fastapi import FastAPI
+from fastapi.params import Query
+from fastapi.exceptions import HTTPException
+
+from db.songs_database import SongsDatabase
+from utils.config import docs_description
+from utils.songs_class import Song
+from utils.fastapi_models import APIInfo, APIError, SongWithScore
 
 
-NATURAL_KEYS = {60, 62, 64, 65, 67, 69, 71}
+app = FastAPI(
+    title="MIMIさん全曲分析 バックエンドAPI",
+    description=docs_description,
+    version="0.1.0",
+    # terms_of_service="https://takechi.f5.si/",
+    contact={
+        "name": "takechi",
+        "url": "https://x.com/takechi_scratch/",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    # openapi_tags=tags_metadata,
+)
+
+db = SongsDatabase("db/data/songs.db")
 
 
-class SongsDatabase:
-    def __init__(self):
-        self.songs = []
-        self.songs_by_id = {}
-        self.std = None
+@app.get("/", response_model=APIInfo)
+async def api_info():
+    """APIの基本情報を取得します。"""
+    return APIInfo()
 
-    async def fetch_songs(self, url: str) -> None:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
-            response = await client.get(url)
+@app.get("/songs/{song_id}", response_model=Song)
+async def get_song_info(song_id: str):
+    """指定した曲の情報を取得します。"""
+    song = db.get_song_by_id(song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    return song
 
-            # リダイレクトが発生した場合の確認
-            # if response.history:
-            #     print(f"Redirected from: {response.history[0].url}")
-            #     print(f"Final URL: {response.url}")
+@app.get("/songs_all/", response_model=list[Song])
+async def get_all_songs():
+    """全ての曲の情報を取得します。"""
+    songs = db.get_all_songs()
+    return songs
 
-            if not response.headers.get("Content-Type").startswith("application/json"):
-                print(response.text)
-                raise ValueError("Error in Google Apps Script")
+@app.get("/songs_count/")
+async def get_songs_count():
+    """データベース内の曲数を取得します。"""
+    count = db.get_songs_count()
+    return {"count": count}
 
-            for item in response.json():
-                song = Song(**item)
-                self.songs.append(song)
-                self.songs_by_id[song.id] = song
+@app.get("/nearest_songs/", response_model=list[SongWithScore])
+async def get_nearest_songs(target_song_id: str, limit: int = Query(10, ge=1)):
+    """指定した条件に基づいて、最も近い曲を検索します。"""
+    try:
+        songs_queue = db.find_nearest_song(target_song_id, limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="Target song not found")
 
-            print("Data received:", self.songs)
-
-        self.std = SongsSTD(self.songs)
-
-    def find_nearest_song(self, target: Song | str, limit: int = 10) -> list[Song]:
-        if isinstance(target, str):
-            target = self.songs_by_id.get(target)
-            if not target:
-                raise ValueError(f"Song with id {target} not found in database.")
-
-        queue = []
-        for song in self.songs:
-            if song == target:
-                continue
-
-            score = SongsMatchScore(song, target, self.std)
-            heapq.heappush(queue, SongInQueue(song, score))
-
-        return [(song_in_queue.song, song_in_queue.score) for song_in_queue in [heapq.heappop(queue) for _ in range(min(limit, len(queue)))]]
-
-
-
-async def main():
-    db = SongsDatabase()
-    url = "https://script.google.com/macros/s/AKfycbx-qahGzAdW4w5KvG3n7QkLWmZRxucywd7TrrTWkGYzlIJ65fCHD02XlivkrZBhEYY5cw/exec"
-    await db.fetch_songs(url)
-
-    while True:
-        query = input("1: find nearest songs\n2: find nearest songs(includes repr)\n3: calculate SongsMatchScore\n>>>")
-        if query == "1" or query == "2":
-            id = input("Enter song ID to find nearest songs (or 'exit' to quit): ")
-            if id.lower() == 'exit':
-                break
-
-            try:
-                nearest_songs = db.find_nearest_song(id)
-                print("Nearest songs found:")
-                for song, match_score in nearest_songs:
-                    if query == "1":
-                        print(f" - {song.title} (Score: {str(match_score)})")
-                    elif query == "2":
-                        print(f" - {song.title} (Score: {str(match_score)} repr: {repr(match_score)})")
-            except ValueError as e:
-                print(e)
-
-        elif query == "3":
-            id1 = input("Enter first song ID: ")
-            id2 = input("Enter second song ID: ")
-
-            song1 = db.songs_by_id.get(id1)
-            song2 = db.songs_by_id.get(id2)
-
-            if not song1 or not song2:
-                print("One or both songs not found in database.")
-                continue
-
-            match_score = SongsMatchScore(song1, song2, db.std)
-            print(f"SongsMatchScore between {song1.title} and {song2.title}: {match_score}")
-            print(f"repr: {repr(match_score)}")
-
-        else:
-            exit()
-
-asyncio.run(main())
+    if not songs_queue:
+        raise HTTPException(status_code=404, detail="No similar songs found")
+    return [SongWithScore(song=song_in_queue.song, score=float(song_in_queue.score)) for song_in_queue in songs_queue]

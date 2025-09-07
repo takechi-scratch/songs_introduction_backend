@@ -4,7 +4,6 @@ from typing import Optional
 
 from utils.songs_class import Song, SongsMatchScore, SongInQueue, SongsSTD
 
-
 class SongsDatabase:
     def __init__(self, db_path: str = "db/data/songs.db"):
         """
@@ -16,7 +15,8 @@ class SongsDatabase:
         self.db_path = db_path
         self.init_database()
 
-        self.std = SongsSTD(self.get_all_songs())
+        if self.get_songs_count() > 0:
+            self.std = SongsSTD(self.get_all_songs())
 
     def init_database(self):
         """データベースとテーブルを初期化"""
@@ -240,7 +240,7 @@ class SongsDatabase:
             conn.execute('DELETE FROM songs')
             conn.commit()
 
-    def find_nearest_song(self, target: Song | str, limit: int = 10) -> list[Song]:
+    def find_nearest_song(self, target: Song | str, limit: int = 10) -> list[SongInQueue]:
         """曲調の似た楽曲を取得
 
         Args:
@@ -266,4 +266,4 @@ class SongsDatabase:
             score = SongsMatchScore(song, target, self.std)
             heapq.heappush(queue, SongInQueue(song, score))
 
-        return [(song_in_queue.song, song_in_queue.score) for song_in_queue in [heapq.heappop(queue) for _ in range(min(limit, len(queue)))]]
+        return [heapq.heappop(queue) for _ in range(min(limit, len(queue)))]
