@@ -2,7 +2,7 @@ import sqlite3
 import heapq
 from typing import Optional
 
-from utils.songs_class import Song, SongsMatchScore, SongInQueue, SongsSTD
+from utils.songs_class import Song, SongVideoData, SongsMatchScore, SongInQueue, SongsSTD
 
 class SongsDatabase:
     def __init__(self, db_path: str = "db/data/songs.db"):
@@ -28,6 +28,7 @@ class SongsDatabase:
                     publishedTimestamp INTEGER NOT NULL,
                     isPublishedInOriginalChannel BOOLEAN NOT NULL,
                     durationSeconds INTEGER NOT NULL,
+                    thumbnailURL TEXT NOT NULL,
                     vocal TEXT NOT NULL,
                     illustrations TEXT NOT NULL,
                     movie TEXT NOT NULL,
@@ -58,13 +59,13 @@ class SongsDatabase:
                 conn.execute('''
                     INSERT INTO songs (
                         id, title, publishedTimestamp, isPublishedInOriginalChannel,
-                        durationSeconds, vocal, illustrations, movie, bpm, mainKey,
+                        durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                         chordRate6451, chordRate4561, mainChord, pianoRate,
-                        modulationTimes, comment
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        modulationTimes, comment,
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     song.id, song.title, song.publishedTimestamp, song.isPublishedInOriginalChannel,
-                    song.durationSeconds, song.vocal, song.illustrations, song.movie,
+                    song.durationSeconds, song.thumbnailURL, song.vocal, song.illustrations, song.movie,
                     song.bpm, song.mainKey, song.chordRate6451, song.chordRate4561,
                     song.mainChord, song.pianoRate, song.modulationTimes, song.comment
                 ))
@@ -121,17 +122,46 @@ class SongsDatabase:
             cursor = conn.execute('''
                 UPDATE songs SET
                     title = ?, publishedTimestamp = ?, isPublishedInOriginalChannel = ?,
-                    durationSeconds = ?, vocal = ?, illustrations = ?, movie = ?,
+                    durationSeconds = ?, thumbnailURL = ?, vocal = ?, illustrations = ?, movie = ?,
                     bpm = ?, mainKey = ?, chordRate6451 = ?, chordRate4561 = ?,
                     mainChord = ?, pianoRate = ?, modulationTimes = ?, comment = ?
                 WHERE id = ?
             ''', (
                 song.title, song.publishedTimestamp, song.isPublishedInOriginalChannel,
-                song.durationSeconds, song.vocal, song.illustrations, song.movie,
+                song.durationSeconds, song.thumbnailURL, song.vocal, song.illustrations, song.movie,
                 song.bpm, song.mainKey, song.chordRate6451, song.chordRate4561,
                 song.mainChord, song.pianoRate, song.modulationTimes, song.comment,
                 song.id
             ))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def update_songs_data_batch(self, songs: list[SongVideoData]) -> bool:
+        """
+        楽曲を一括更新
+
+        Args:
+            songs: 更新する楽曲データのリスト
+
+        Returns:
+            bool: 更新に成功した場合True、楽曲が存在しない場合False
+        """
+        if len(songs) == 0:
+            return False
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            for song in songs:
+                cursor.execute('''
+                    UPDATE songs SET
+                        title = ?, publishedTimestamp = ?, isPublishedInOriginalChannel = ?,
+                        durationSeconds = ?, thumbnailURL = ?
+                    WHERE id = ?
+                ''', (
+                    song.title, song.publishedTimestamp, song.isPublishedInOriginalChannel,
+                    song.durationSeconds, song.thumbnailURL,
+                    song.id
+                ))
             conn.commit()
             return cursor.rowcount > 0
 
@@ -217,13 +247,13 @@ class SongsDatabase:
                     conn.execute('''
                         INSERT INTO songs (
                             id, title, publishedTimestamp, isPublishedInOriginalChannel,
-                            durationSeconds, vocal, illustrations, movie, bpm, mainKey,
+                            durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                             chordRate6451, chordRate4561, mainChord, pianoRate,
                             modulationTimes, comment
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         song.id, song.title, song.publishedTimestamp, song.isPublishedInOriginalChannel,
-                        song.durationSeconds, song.vocal, song.illustrations, song.movie,
+                        song.durationSeconds, song.thumbnailURL, song.vocal, song.illustrations, song.movie,
                         song.bpm, song.mainKey, song.chordRate6451, song.chordRate4561,
                         song.mainChord, song.pianoRate, song.modulationTimes, song.comment
                     ))

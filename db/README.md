@@ -122,6 +122,7 @@ CREATE TABLE songs (
     publishedTimestamp INTEGER NOT NULL,
     isPublishedInOriginalChannel BOOLEAN NOT NULL,
     durationSeconds INTEGER NOT NULL,
+    thumbnailURL TEXT NOT NULL,
     vocal TEXT NOT NULL,
     illustrations TEXT NOT NULL,
     movie TEXT NOT NULL,

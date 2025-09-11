@@ -1,11 +1,11 @@
-# 前に使用していた、テスト用のCLIスクリプト
-# 将来改修します
+# テスト用のCLIスクリプト
+import asyncio
+
+from db.songs_database import SongsDatabase
+from utils.songs_class import SongsMatchScore
 
 async def main():
     db = SongsDatabase()
-    url = "https://script.google.com/macros/s/AKfycbx-qahGzAdW4w5KvG3n7QkLWmZRxucywd7TrrTWkGYzlIJ65fCHD02XlivkrZBhEYY5cw/exec"
-    await db.fetch_songs(url)
-
     while True:
         query = input("1: find nearest songs\n2: find nearest songs(includes repr)\n3: calculate SongsMatchScore\n>>>")
         if query == "1" or query == "2":
@@ -16,7 +16,8 @@ async def main():
             try:
                 nearest_songs = db.find_nearest_song(id)
                 print("Nearest songs found:")
-                for song, match_score in nearest_songs:
+                for song_queue in nearest_songs:
+                    song, match_score = song_queue.song, song_queue.score
                     if query == "1":
                         print(f" - {song.title} (Score: {str(match_score)})")
                     elif query == "2":
@@ -28,8 +29,8 @@ async def main():
             id1 = input("Enter first song ID: ")
             id2 = input("Enter second song ID: ")
 
-            song1 = db.songs_by_id.get(id1)
-            song2 = db.songs_by_id.get(id2)
+            song1 = db.get_song_by_id(id1)
+            song2 = db.get_song_by_id(id2)
 
             if not song1 or not song2:
                 print("One or both songs not found in database.")
@@ -41,3 +42,6 @@ async def main():
 
         else:
             exit()
+
+if __name__ == "__main__":
+    asyncio.run(main())

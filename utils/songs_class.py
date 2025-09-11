@@ -6,12 +6,15 @@ from utils.math import sigmoid
 
 NATURAL_KEYS = {60, 62, 64, 65, 67, 69, 71}
 
-class Song(BaseModel):
+class SongVideoData(BaseModel):
     id: str
     title: str
     publishedTimestamp: int
     isPublishedInOriginalChannel: bool
     durationSeconds: int
+    thumbnailURL: str
+
+class Song(SongVideoData):
     vocal: str
     illustrations: str
     movie: str

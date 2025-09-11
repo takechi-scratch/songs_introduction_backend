@@ -13,7 +13,7 @@ async def fetch_songs(url: str, database_path: str = "db/data/songs.db") -> None
             print(response.text)
             raise ValueError("Error in Google Apps Script")
 
-        database.add_songs_batch([Song(**item) for item in response.json()])
+        database.add_songs_batch([Song(**item, thumbnailURL="https://example.com/thumbnail.jpg") for item in response.json()])
 
         print("Data received:", database.get_all_songs())
 

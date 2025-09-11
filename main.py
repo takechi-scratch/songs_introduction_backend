@@ -1,12 +1,30 @@
 import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.params import Query
 from fastapi.exceptions import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import uvicorn
 
 from db.songs_database import SongsDatabase
+from db.update_youtube_data import regist_scheduler
 from utils.config import docs_description
 from utils.songs_class import Song
-from utils.fastapi_models import APIInfo, APIError, SongWithScore
+from utils.fastapi_models import APIInfo, SongWithScore
+
+load_dotenv()
+
+scheduler = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global scheduler
+    scheduler = regist_scheduler(db)
+    yield
+    if scheduler:
+        scheduler.shutdown()
 
 
 app = FastAPI(
@@ -23,6 +41,20 @@ app = FastAPI(
         "url": "https://opensource.org/licenses/MIT",
     },
     # openapi_tags=tags_metadata,
+    lifespan=lifespan,
+)
+
+
+origins = [
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 db = SongsDatabase("db/data/songs.db")
@@ -64,3 +96,6 @@ async def get_nearest_songs(target_song_id: str, limit: int = Query(10, ge=1)):
     if not songs_queue:
         raise HTTPException(status_code=404, detail="No similar songs found")
     return [SongWithScore(song=song_in_queue.song, score=float(song_in_queue.score)) for song_in_queue in songs_queue]
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
