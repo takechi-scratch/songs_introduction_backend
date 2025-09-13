@@ -65,7 +65,7 @@ async def api_info():
     """APIの基本情報を取得します。"""
     return APIInfo()
 
-@app.get("/songs/{song_id}", response_model=Song)
+@app.get("/songs/{song_id}/", response_model=Song)
 async def get_song_info(song_id: str):
     """指定した曲の情報を取得します。"""
     song = db.get_song_by_id(song_id)
@@ -95,7 +95,7 @@ async def get_nearest_songs(target_song_id: str, limit: int = Query(10, ge=1)):
 
     if not songs_queue:
         raise HTTPException(status_code=404, detail="No similar songs found")
-    return [SongWithScore(song=song_in_queue.song, score=float(song_in_queue.score)) for song_in_queue in songs_queue]
+    return [SongWithScore(id=song_in_queue.song.id, song=song_in_queue.song, score=float(song_in_queue.score)) for song_in_queue in songs_queue]
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

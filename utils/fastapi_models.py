@@ -11,5 +11,6 @@ class APIError(BaseModel):
     error: str = Field(..., description="エラーメッセージ", examples=["An error occurred"])
 
 class SongWithScore(BaseModel):
+    id: str
     song: Song
     score: float
