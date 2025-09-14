@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 from fastapi.params import Query
@@ -98,4 +99,4 @@ async def get_nearest_songs(target_song_id: str, limit: int = Query(10, ge=1)):
     return [SongWithScore(id=song_in_queue.song.id, song=song_in_queue.song, score=float(song_in_queue.score)) for song_in_queue in songs_queue]
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
