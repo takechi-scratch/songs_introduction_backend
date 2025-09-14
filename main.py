@@ -47,7 +47,7 @@ app = FastAPI(
 
 
 origins = [
-    "http://localhost:3000",
+    os.getenv("PRODUCTION_URL", "http://localhost:3000"),
 ]
 
 app.add_middleware(
