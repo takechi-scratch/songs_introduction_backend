@@ -1,8 +1,9 @@
 from pydantic import BaseModel
 import statistics
 from functools import total_ordering
+from typing import Optional
 
-from utils.math import sigmoid
+from utils.math import sigmoid, calc_a
 
 NATURAL_KEYS = {60, 62, 64, 65, 67, 69, 71}
 
@@ -48,12 +49,16 @@ class SongsSTD:
 
 
 class SongInQueue:
-    def __init__(self, song: Song, score: "SongsMatchScore"):
+    def __init__(self, song: Song, score: "SongsMatchScore", reversed: bool = False) -> None:
         self.song = song
         self.score = score
+        self.reversed = reversed
 
     def __lt__(self, other):
-        return -float(self.score) < -float(other.score)
+        if self.reversed:
+            return float(self.score) < float(other.score)
+        else:
+            return -float(self.score) < -float(other.score)
 
     def __eq__(self, other):
         return self.song == other.song
@@ -61,10 +66,18 @@ class SongInQueue:
 
 @total_ordering
 class SongsMatchScore:
-    def __init__(self, song1: Song, song2: Song, songs_std: SongsSTD, **kwargs) -> None:
+    def __init__(
+        self,
+        song1: Song,
+        song2: Song,
+        songs_std: SongsSTD,
+        parameters: Optional["SongsCustomParameters"] = None,
+        **kwargs,
+    ) -> None:
         self.song1 = song1
         self.song2 = song2
         self.songs_std = songs_std
+        self.parameters = parameters
 
         if kwargs:
             [self.__setattr__(key, value) for key, value in kwargs.items()]
@@ -134,19 +147,35 @@ class SongsMatchScore:
         self.modulationTimes = max(-1, min(1, round(self.modulationTimes, 4)))
 
     def get_score(self) -> float:
-        return sigmoid(
-            self.vocal * 0.8
-            + self.illustrations
-            + self.movie * 0.3
-            + self.bpm * 1.3
-            + max(self.chordRate6451, self.chordRate4561) * 0.5
-            + min(self.chordRate6451, self.chordRate4561) * 0.1
-            + self.pianoRate * 0.6  # かなり差が大きいので小さめ
-            + self.mainKey * 0.6
-            + self.mainChord * 0.6
-            + self.modulationTimes * 0.4,
-            a=0.7,
-        )
+        if self.parameters is not None:
+            p = self.parameters
+            return sigmoid(
+                self.vocal * p.vocal
+                + self.illustrations * p.illustrations
+                + self.movie * p.movie
+                + self.bpm * p.bpm
+                + self.chordRate6451 * p.chordRate6451
+                + self.chordRate4561 * p.chordRate4561
+                + self.pianoRate * p.pianoRate
+                + self.mainKey * p.mainKey
+                + self.mainChord * p.mainChord
+                + self.modulationTimes * p.modulationTimes,
+                a=p.a,
+            )
+        else:
+            return sigmoid(
+                self.vocal * 0.8
+                + self.illustrations
+                + self.movie * 0.3
+                + self.bpm * 1.3
+                + max(self.chordRate6451, self.chordRate4561) * 0.5
+                + min(self.chordRate6451, self.chordRate4561) * 0.1
+                + self.pianoRate * 0.6  # かなり差が大きいので小さめ
+                + self.mainKey * 0.6
+                + self.mainChord * 0.6
+                + self.modulationTimes * 0.4,
+                a=0.74,
+            )
 
     def __str__(self) -> str:
         return f"{self.get_score() * 100:.2f}%"
@@ -174,3 +203,44 @@ class SongsMatchScore:
 
     def __eq__(self, other):
         return float(self) == float(other)
+
+
+class SongsCustomParameters(BaseModel):
+    vocal: int
+    illustrations: int
+    movie: int
+    bpm: int
+    chordRate6451: int
+    chordRate4561: int
+    pianoRate: int
+    mainKey: int
+    mainChord: int
+    modulationTimes: int
+    a: Optional[float] = None
+
+    def __init__(self, **data):
+        super().__init__(**data)
+
+        if self.a is not None:
+            print(self.a)
+            return
+
+        total_weight = sum(data.values())
+        self.a = calc_a(total_weight) if total_weight > 0 else 1.0
+
+
+if __name__ == "__main__":
+    param = SongsCustomParameters(
+        vocal=3,
+        illustrations=1,
+        movie=1,
+        bpm=5,
+        chordRate6451=3,
+        chordRate4561=1,
+        pianoRate=2,
+        mainKey=2,
+        mainChord=2,
+        modulationTimes=1,
+    )
+    print(param)
+    print(param.a)

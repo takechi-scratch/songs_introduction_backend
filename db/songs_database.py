@@ -8,6 +8,7 @@ from utils.songs_class import (
     SongsMatchScore,
     SongInQueue,
     SongsSTD,
+    SongsCustomParameters,
 )
 
 
@@ -240,37 +241,42 @@ class SongsDatabase:
         params = []
 
         for key, value in kwargs.items():
+            if value is None:
+                continue
+
             if key in [
                 "title",
                 "vocal",
                 "illustrations",
                 "movie",
-                "mainChord",
                 "comment",
             ]:
                 conditions.append(f"{key} LIKE ?")
                 params.append(f"%{value}%")
             elif key in [
                 "id",
-                "bpm",
+                "mainChord",
                 "mainKey",
-                "modulationTimes",
-                "durationSeconds",
-                "publishedTimestamp",
             ]:
                 conditions.append(f"{key} = ?")
                 params.append(value)
             elif key in ["isPublishedInOriginalChannel"]:
                 conditions.append(f"{key} = ?")
                 params.append(bool(value))
-            elif key in ["chordRate6451", "chordRate4561", "pianoRate"]:
-                conditions.append(f"{key} = ?")
-                params.append(float(value))
 
-        if not conditions:
-            return self.get_all_songs()
+        if conditions:
+            filter = "WHERE " + " AND ".join(conditions)
+        else:
+            filter = ""
 
-        query = f"SELECT * FROM songs WHERE {' AND '.join(conditions)} ORDER BY publishedTimestamp DESC"
+        order = kwargs.get("order", "publishedTimestamp")
+        if order is None:
+            order = "publishedTimestamp"
+        is_asc = kwargs.get("asc", False)
+        if is_asc is None:
+            is_asc = False
+
+        query = f"SELECT * FROM songs {filter} ORDER BY {order} {'ASC' if is_asc else 'DESC'}"
 
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -346,7 +352,13 @@ class SongsDatabase:
             conn.execute("DELETE FROM songs")
             conn.commit()
 
-    def find_nearest_song(self, target: Song | str, limit: int = 10) -> list[SongInQueue]:
+    def find_nearest_song(
+        self,
+        target: Song | str,
+        limit: int = 10,
+        parameters: Optional[SongsCustomParameters] = None,
+        is_reversed: bool = False,
+    ) -> list[SongInQueue]:
         """曲調の似た楽曲を取得
 
         Args:
@@ -369,7 +381,7 @@ class SongsDatabase:
             if song == target:
                 continue
 
-            score = SongsMatchScore(song, target, self.std)
-            heapq.heappush(queue, SongInQueue(song, score))
+            score = SongsMatchScore(song, target, self.std, parameters)
+            heapq.heappush(queue, SongInQueue(song, score, is_reversed))
 
         return [heapq.heappop(queue) for _ in range(min(limit, len(queue)))]
