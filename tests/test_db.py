@@ -4,10 +4,12 @@
 
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from db.songs_database import SongsDatabase
 from utils.songs_class import Song
+
 
 def test_database():
     # データベースを初期化
@@ -30,7 +32,7 @@ def test_database():
         mainChord="C",
         pianoRate=0.8,
         modulationTimes=2,
-        comment="これはテスト楽曲です"
+        comment="これはテスト楽曲です",
     )
 
     print("=== データベーステスト開始 ===")
@@ -85,6 +87,7 @@ def test_database():
     print(f"   削除後の楽曲数: {final_count}")
 
     print("=== データベーステスト完了 ===")
+
 
 if __name__ == "__main__":
     test_database()

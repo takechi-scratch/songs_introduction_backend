@@ -4,10 +4,12 @@
 
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from db.songs_database import SongsDatabase
 from utils.songs_class import Song
+
 
 def test_batch_add():
     # データベースを初期化
@@ -31,7 +33,7 @@ def test_batch_add():
             mainChord="C",
             pianoRate=0.8,
             modulationTimes=2,
-            comment="バッチテスト楽曲1です"
+            comment="バッチテスト楽曲1です",
         ),
         Song(
             id="batch002",
@@ -49,7 +51,7 @@ def test_batch_add():
             mainChord="D",
             pianoRate=0.7,
             modulationTimes=1,
-            comment="バッチテスト楽曲2です"
+            comment="バッチテスト楽曲2です",
         ),
         Song(
             id="batch003",
@@ -67,8 +69,8 @@ def test_batch_add():
             mainChord="E",
             pianoRate=0.9,
             modulationTimes=3,
-            comment="バッチテスト楽曲3です"
-        )
+            comment="バッチテスト楽曲3です",
+        ),
     ]
 
     print("=== バッチ追加テスト開始 ===")
@@ -97,6 +99,7 @@ def test_batch_add():
     print(f"   最終楽曲数: {final_count}")
 
     print("=== バッチ追加テスト完了 ===")
+
 
 if __name__ == "__main__":
     test_batch_add()

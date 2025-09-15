@@ -19,6 +19,7 @@ load_dotenv()
 
 scheduler = None
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global scheduler
@@ -66,6 +67,7 @@ async def api_info():
     """APIの基本情報を取得します。"""
     return APIInfo()
 
+
 @app.get("/songs/{song_id}/", response_model=Song)
 async def get_song_info(song_id: str):
     """指定した曲の情報を取得します。"""
@@ -74,11 +76,13 @@ async def get_song_info(song_id: str):
         raise HTTPException(status_code=404, detail="Song not found")
     return song
 
+
 @app.get("/songs_all/", response_model=list[Song])
 async def get_all_songs():
     """全ての曲の情報を取得します。"""
     songs = db.get_all_songs()
     return songs
+
 
 @app.get("/songs_count/")
 async def get_songs_count():
@@ -86,7 +90,19 @@ async def get_songs_count():
     count = db.get_songs_count()
     return {"count": count}
 
-@app.get("/nearest_songs/", response_model=list[SongWithScore])
+
+@app.get("/search/filter/", response_model=list[Song])
+async def filter_songs(genre: str | None = None, artist: str | None = None):
+    """指定した条件に基づいて曲をフィルタリングします。"""
+    songs = db.get_all_songs()
+    if genre:
+        songs = [song for song in songs if song.genre == genre]
+    if artist:
+        songs = [song for song in songs if song.artist == artist]
+    return songs
+
+
+@app.get("/search/nearest/", response_model=list[SongWithScore])
 async def get_nearest_songs(target_song_id: str, limit: int = Query(10, ge=1)):
     """指定した条件に基づいて、最も近い曲を検索します。"""
     try:
@@ -96,7 +112,15 @@ async def get_nearest_songs(target_song_id: str, limit: int = Query(10, ge=1)):
 
     if not songs_queue:
         raise HTTPException(status_code=404, detail="No similar songs found")
-    return [SongWithScore(id=song_in_queue.song.id, song=song_in_queue.song, score=float(song_in_queue.score)) for song_in_queue in songs_queue]
+    return [
+        SongWithScore(
+            id=song_in_queue.song.id,
+            song=song_in_queue.song,
+            score=float(song_in_queue.score),
+        )
+        for song_in_queue in songs_queue
+    ]
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))

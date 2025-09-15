@@ -4,13 +4,14 @@ import asyncio
 from db.songs_database import SongsDatabase
 from utils.songs_class import SongsMatchScore
 
+
 async def main():
     db = SongsDatabase()
     while True:
         query = input("1: find nearest songs\n2: find nearest songs(includes repr)\n3: calculate SongsMatchScore\n>>>")
         if query == "1" or query == "2":
             id = input("Enter song ID to find nearest songs (or 'exit' to quit): ")
-            if id.lower() == 'exit':
+            if id.lower() == "exit":
                 break
 
             try:
@@ -42,6 +43,7 @@ async def main():
 
         else:
             exit()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

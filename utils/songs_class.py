@@ -6,6 +6,7 @@ from utils.math import sigmoid
 
 NATURAL_KEYS = {60, 62, 64, 65, 67, 69, 71}
 
+
 class SongVideoData(BaseModel):
     id: str
     title: str
@@ -13,6 +14,7 @@ class SongVideoData(BaseModel):
     isPublishedInOriginalChannel: bool
     durationSeconds: int
     thumbnailURL: str
+
 
 class Song(SongVideoData):
     vocal: str
@@ -102,7 +104,11 @@ class SongsMatchScore:
             self.mainKey = -1.0
         elif int(song1.mainKey in NATURAL_KEYS) == int(song2.mainKey in NATURAL_KEYS):
             self.mainKey = 0.3
-        elif abs(song1.mainKey - song2.mainKey) <= 2 and song1.mainKey not in NATURAL_KEYS and song2.mainKey not in NATURAL_KEYS:
+        elif (
+            abs(song1.mainKey - song2.mainKey) <= 2
+            and song1.mainKey not in NATURAL_KEYS
+            and song2.mainKey not in NATURAL_KEYS
+        ):
             self.mainKey = 0.7
 
         self.mainChord = -1.0
@@ -115,8 +121,7 @@ class SongsMatchScore:
         self.modulationTimes = 1.0 - abs(min(3, song1.modulationTimes) - min(3, song2.modulationTimes)) * 0.6
 
     def _moderate(self) -> None:
-        """Moderate the values to be within the range [-1, 1].
-        """
+        """Moderate the values to be within the range [-1, 1]."""
         self.vocal = max(-1, min(1, round(self.vocal, 4)))
         self.illustrations = max(-1, min(1, round(self.illustrations, 4)))
         self.movie = max(-1, min(1, round(self.movie, 4)))
@@ -139,8 +144,9 @@ class SongsMatchScore:
             + self.pianoRate * 0.6  # かなり差が大きいので小さめ
             + self.mainKey * 0.6
             + self.mainChord * 0.6
-            + self.modulationTimes * 0.4
-        , a=0.7)
+            + self.modulationTimes * 0.4,
+            a=0.7,
+        )
 
     def __str__(self) -> str:
         return f"{self.get_score() * 100:.2f}%"

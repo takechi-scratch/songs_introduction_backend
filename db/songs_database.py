@@ -2,7 +2,14 @@ import sqlite3
 import heapq
 from typing import Optional
 
-from utils.songs_class import Song, SongVideoData, SongsMatchScore, SongInQueue, SongsSTD
+from utils.songs_class import (
+    Song,
+    SongVideoData,
+    SongsMatchScore,
+    SongInQueue,
+    SongsSTD,
+)
+
 
 class SongsDatabase:
     def __init__(self, db_path: str = "db/data/songs.db"):
@@ -21,7 +28,8 @@ class SongsDatabase:
     def init_database(self):
         """データベースとテーブルを初期化"""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute('''
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS songs (
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
@@ -41,7 +49,8 @@ class SongsDatabase:
                     modulationTimes INTEGER NOT NULL,
                     comment TEXT NOT NULL
                 )
-            ''')
+            """
+            )
             conn.commit()
 
     def add_song(self, song: Song) -> bool:
@@ -56,19 +65,35 @@ class SongsDatabase:
         """
         try:
             with sqlite3.connect(self.db_path) as conn:
-                conn.execute('''
+                conn.execute(
+                    """
                     INSERT INTO songs (
                         id, title, publishedTimestamp, isPublishedInOriginalChannel,
                         durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                         chordRate6451, chordRate4561, mainChord, pianoRate,
                         modulationTimes, comment,
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    song.id, song.title, song.publishedTimestamp, song.isPublishedInOriginalChannel,
-                    song.durationSeconds, song.thumbnailURL, song.vocal, song.illustrations, song.movie,
-                    song.bpm, song.mainKey, song.chordRate6451, song.chordRate4561,
-                    song.mainChord, song.pianoRate, song.modulationTimes, song.comment
-                ))
+                """,
+                    (
+                        song.id,
+                        song.title,
+                        song.publishedTimestamp,
+                        song.isPublishedInOriginalChannel,
+                        song.durationSeconds,
+                        song.thumbnailURL,
+                        song.vocal,
+                        song.illustrations,
+                        song.movie,
+                        song.bpm,
+                        song.mainKey,
+                        song.chordRate6451,
+                        song.chordRate4561,
+                        song.mainChord,
+                        song.pianoRate,
+                        song.modulationTimes,
+                        song.comment,
+                    ),
+                )
                 conn.commit()
                 return True
         except sqlite3.IntegrityError:
@@ -87,7 +112,7 @@ class SongsDatabase:
         """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            cursor = conn.execute('SELECT * FROM songs WHERE id = ?', (song_id,))
+            cursor = conn.execute("SELECT * FROM songs WHERE id = ?", (song_id,))
             row = cursor.fetchone()
 
             if row:
@@ -103,7 +128,7 @@ class SongsDatabase:
         """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            cursor = conn.execute('SELECT * FROM songs ORDER BY publishedTimestamp DESC')
+            cursor = conn.execute("SELECT * FROM songs ORDER BY publishedTimestamp DESC")
             rows = cursor.fetchall()
 
             return [Song(**row) for row in rows]
@@ -119,20 +144,35 @@ class SongsDatabase:
             bool: 更新に成功した場合True、楽曲が存在しない場合False
         """
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute('''
+            cursor = conn.execute(
+                """
                 UPDATE songs SET
                     title = ?, publishedTimestamp = ?, isPublishedInOriginalChannel = ?,
                     durationSeconds = ?, thumbnailURL = ?, vocal = ?, illustrations = ?, movie = ?,
                     bpm = ?, mainKey = ?, chordRate6451 = ?, chordRate4561 = ?,
                     mainChord = ?, pianoRate = ?, modulationTimes = ?, comment = ?
                 WHERE id = ?
-            ''', (
-                song.title, song.publishedTimestamp, song.isPublishedInOriginalChannel,
-                song.durationSeconds, song.thumbnailURL, song.vocal, song.illustrations, song.movie,
-                song.bpm, song.mainKey, song.chordRate6451, song.chordRate4561,
-                song.mainChord, song.pianoRate, song.modulationTimes, song.comment,
-                song.id
-            ))
+            """,
+                (
+                    song.title,
+                    song.publishedTimestamp,
+                    song.isPublishedInOriginalChannel,
+                    song.durationSeconds,
+                    song.thumbnailURL,
+                    song.vocal,
+                    song.illustrations,
+                    song.movie,
+                    song.bpm,
+                    song.mainKey,
+                    song.chordRate6451,
+                    song.chordRate4561,
+                    song.mainChord,
+                    song.pianoRate,
+                    song.modulationTimes,
+                    song.comment,
+                    song.id,
+                ),
+            )
             conn.commit()
             return cursor.rowcount > 0
 
@@ -152,16 +192,22 @@ class SongsDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             for song in songs:
-                cursor.execute('''
+                cursor.execute(
+                    """
                     UPDATE songs SET
                         title = ?, publishedTimestamp = ?, isPublishedInOriginalChannel = ?,
                         durationSeconds = ?, thumbnailURL = ?
                     WHERE id = ?
-                ''', (
-                    song.title, song.publishedTimestamp, song.isPublishedInOriginalChannel,
-                    song.durationSeconds, song.thumbnailURL,
-                    song.id
-                ))
+                """,
+                    (
+                        song.title,
+                        song.publishedTimestamp,
+                        song.isPublishedInOriginalChannel,
+                        song.durationSeconds,
+                        song.thumbnailURL,
+                        song.id,
+                    ),
+                )
             conn.commit()
             return cursor.rowcount > 0
 
@@ -176,7 +222,7 @@ class SongsDatabase:
             bool: 削除に成功した場合True、楽曲が存在しない場合False
         """
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute('DELETE FROM songs WHERE id = ?', (song_id,))
+            cursor = conn.execute("DELETE FROM songs WHERE id = ?", (song_id,))
             conn.commit()
             return cursor.rowcount > 0
 
@@ -194,16 +240,30 @@ class SongsDatabase:
         params = []
 
         for key, value in kwargs.items():
-            if key in ['title', 'vocal', 'illustrations', 'movie', 'mainChord', 'comment']:
+            if key in [
+                "title",
+                "vocal",
+                "illustrations",
+                "movie",
+                "mainChord",
+                "comment",
+            ]:
                 conditions.append(f"{key} LIKE ?")
                 params.append(f"%{value}%")
-            elif key in ['id', 'bpm', 'mainKey', 'modulationTimes', 'durationSeconds', 'publishedTimestamp']:
+            elif key in [
+                "id",
+                "bpm",
+                "mainKey",
+                "modulationTimes",
+                "durationSeconds",
+                "publishedTimestamp",
+            ]:
                 conditions.append(f"{key} = ?")
                 params.append(value)
-            elif key in ['isPublishedInOriginalChannel']:
+            elif key in ["isPublishedInOriginalChannel"]:
                 conditions.append(f"{key} = ?")
                 params.append(bool(value))
-            elif key in ['chordRate6451', 'chordRate4561', 'pianoRate']:
+            elif key in ["chordRate6451", "chordRate4561", "pianoRate"]:
                 conditions.append(f"{key} = ?")
                 params.append(float(value))
 
@@ -227,7 +287,7 @@ class SongsDatabase:
             int: 楽曲の総数
         """
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute('SELECT COUNT(*) FROM songs')
+            cursor = conn.execute("SELECT COUNT(*) FROM songs")
             return cursor.fetchone()[0]
 
     def add_songs_batch(self, songs: list[Song]) -> int:
@@ -244,19 +304,35 @@ class SongsDatabase:
         with sqlite3.connect(self.db_path) as conn:
             for song in songs:
                 try:
-                    conn.execute('''
+                    conn.execute(
+                        """
                         INSERT INTO songs (
                             id, title, publishedTimestamp, isPublishedInOriginalChannel,
                             durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                             chordRate6451, chordRate4561, mainChord, pianoRate,
                             modulationTimes, comment
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        song.id, song.title, song.publishedTimestamp, song.isPublishedInOriginalChannel,
-                        song.durationSeconds, song.thumbnailURL, song.vocal, song.illustrations, song.movie,
-                        song.bpm, song.mainKey, song.chordRate6451, song.chordRate4561,
-                        song.mainChord, song.pianoRate, song.modulationTimes, song.comment
-                    ))
+                    """,
+                        (
+                            song.id,
+                            song.title,
+                            song.publishedTimestamp,
+                            song.isPublishedInOriginalChannel,
+                            song.durationSeconds,
+                            song.thumbnailURL,
+                            song.vocal,
+                            song.illustrations,
+                            song.movie,
+                            song.bpm,
+                            song.mainKey,
+                            song.chordRate6451,
+                            song.chordRate4561,
+                            song.mainChord,
+                            song.pianoRate,
+                            song.modulationTimes,
+                            song.comment,
+                        ),
+                    )
                     success_count += 1
                 except sqlite3.IntegrityError:
                     # 既に存在する楽曲はスキップ
@@ -267,7 +343,7 @@ class SongsDatabase:
     def clear_all_songs(self):
         """全楽曲を削除（デバッグ用）"""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute('DELETE FROM songs')
+            conn.execute("DELETE FROM songs")
             conn.commit()
 
     def find_nearest_song(self, target: Song | str, limit: int = 10) -> list[SongInQueue]:

@@ -8,6 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from db.songs_database import SongsDatabase
 from utils.songs_class import SongVideoData
 
+
 def handle_video_response(item: dict) -> SongVideoData:
     snippet = item.get("snippet", {})
     content_details = item.get("contentDetails", {})
@@ -19,7 +20,6 @@ def handle_video_response(item: dict) -> SongVideoData:
     seconds = int(match.group(6) or 0)
     duration_seconds = hours * 3600 + minutes * 60 + seconds
 
-
     published_at = datetime.fromisoformat(snippet.get("publishedAt", "1970-01-01T00:00:00Z").replace("Z", "+00:00"))
     published_timestamp = int(published_at.timestamp())
 
@@ -28,8 +28,8 @@ def handle_video_response(item: dict) -> SongVideoData:
         title=snippet.get("title", ""),
         publishedTimestamp=published_timestamp,
         durationSeconds=duration_seconds,
-        isPublishedInOriginalChannel= snippet.get("channelId", "") == os.getenv("OFFICIAL_CHANNEL_ID"),
-        thumbnailURL=snippet.get("thumbnails", {}).get("high", {}).get("url", "")
+        isPublishedInOriginalChannel=snippet.get("channelId", "") == os.getenv("OFFICIAL_CHANNEL_ID"),
+        thumbnailURL=snippet.get("thumbnails", {}).get("high", {}).get("url", ""),
     )
 
 
@@ -47,9 +47,10 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
                 f"https://youtube.googleapis.com/youtube/v3/videos",
                 params={
                     "part": "snippet,contentDetails",
-                    "id": ",".join(all_ids[i:i+50]),
+                    "id": ",".join(all_ids[i : i + 50]),
                     "key": os.getenv("YOUTUBE_DATA_API_KEY"),
-                })
+                },
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -63,7 +64,7 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
 
 def regist_scheduler(db: SongsDatabase) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(fetch_and_update_all, 'interval', args=[db], hours=24, next_run_time=datetime.now())
+    scheduler.add_job(fetch_and_update_all, "interval", args=[db], hours=24, next_run_time=datetime.now())
     scheduler.start()
     print("Scheduler started for updating YouTube data every 24 hours.")
     return scheduler
@@ -72,6 +73,7 @@ def regist_scheduler(db: SongsDatabase) -> AsyncIOScheduler:
 if __name__ == "__main__":
     import asyncio
     from dotenv import load_dotenv
+
     load_dotenv()
 
     db = SongsDatabase("db/data/songs.db")
