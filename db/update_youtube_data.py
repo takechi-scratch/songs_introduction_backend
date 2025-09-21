@@ -23,13 +23,21 @@ def handle_video_response(item: dict) -> SongVideoData:
     published_at = datetime.fromisoformat(snippet.get("publishedAt", "1970-01-01T00:00:00Z").replace("Z", "+00:00"))
     published_timestamp = int(published_at.timestamp())
 
+    thumbnails = snippet["thumbnails"]
+    if "maxres" in thumbnails:
+        thumbnail_url = thumbnails["maxres"].get("url", "")
+    elif "high" in thumbnails:
+        thumbnail_url = thumbnails["high"].get("url", "")
+    else:
+        thumbnail_url = ""
+
     return SongVideoData(
         id=item.get("id", ""),
         title=snippet.get("title", ""),
         publishedTimestamp=published_timestamp,
         durationSeconds=duration_seconds,
         isPublishedInOriginalChannel=snippet.get("channelId", "") == os.getenv("OFFICIAL_CHANNEL_ID"),
-        thumbnailURL=snippet.get("thumbnails", {}).get("high", {}).get("url", ""),
+        thumbnailURL=thumbnail_url,
     )
 
 

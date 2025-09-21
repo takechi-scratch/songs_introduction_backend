@@ -1,6 +1,5 @@
-import asyncio
-from contextlib import asynccontextmanager
 import os
+from contextlib import asynccontextmanager
 from typing import Optional, Literal
 
 from fastapi import FastAPI
@@ -13,7 +12,7 @@ import uvicorn
 from db.songs_database import SongsDatabase
 from db.update_youtube_data import regist_scheduler
 from utils.config import docs_description
-from utils.songs_class import Song, SongsCustomParameters
+from utils.songs_class import Song
 from utils.fastapi_models import APIInfo, AdvancedNearestSearch, SongWithScore
 
 load_dotenv()
@@ -23,14 +22,11 @@ scheduler = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if os.getenv("ENV") != "development":
-        global scheduler
-        scheduler = regist_scheduler(db)
-        yield
-        if scheduler:
-            scheduler.shutdown()
-    else:
-        yield
+    global scheduler
+    scheduler = regist_scheduler(db)
+    yield
+    if scheduler:
+        scheduler.shutdown()
 
 
 app = FastAPI(
