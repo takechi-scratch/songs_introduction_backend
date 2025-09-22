@@ -72,7 +72,7 @@ class SongsDatabase:
                         id, title, publishedTimestamp, isPublishedInOriginalChannel,
                         durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                         chordRate6451, chordRate4561, mainChord, pianoRate,
-                        modulationTimes, comment,
+                        modulationTimes, comment
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (

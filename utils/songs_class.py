@@ -97,8 +97,8 @@ class SongsMatchScore:
         else:
             self.vocal = 0.0
 
-        self.illustrations = int(song1.illustrations == song2.illustrations)
-        self.movie = int(song1.movie == song2.movie)
+        self.illustrations = int(song1.illustrations == song2.illustrations and song1.illustrations != "")
+        self.movie = int(song1.movie == song2.movie and song1.movie != "")
 
         bpm_raw = 1.0 - abs(song1.bpm - song2.bpm) / songs_std.bpm
         bpm_doubled = 1.0 - abs(max(song1.bpm, song2.bpm) - 2 * min(song1.bpm, song2.bpm)) / songs_std.bpm
