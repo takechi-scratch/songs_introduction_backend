@@ -49,6 +49,7 @@ app = FastAPI(
 
 origins = [
     os.getenv("PRODUCTION_URL", "http://localhost:3000"),
+    "http://localhost:8787",
 ]
 
 app.add_middleware(
@@ -95,7 +96,7 @@ async def get_songs_count():
 async def filter_songs(
     id: Optional[str] = None,
     title: Optional[str] = None,
-    isPublishedInOriginalChannel: Optional[bool] = None,
+    publishedType: Optional[bool] = None,
     vocal: Optional[str] = None,
     illustrations: Optional[str] = None,
     movie: Optional[str] = None,
@@ -122,7 +123,7 @@ async def filter_songs(
     songs = db.search_songs(
         id=id,
         title=title,
-        isPublishedInOriginalChannel=isPublishedInOriginalChannel,
+        publishedType=publishedType,
         vocal=vocal,
         illustrations=illustrations,
         movie=movie,

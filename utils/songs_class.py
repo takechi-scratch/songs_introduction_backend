@@ -12,12 +12,12 @@ class SongVideoData(BaseModel):
     id: str
     title: str
     publishedTimestamp: int
-    isPublishedInOriginalChannel: bool
     durationSeconds: int
     thumbnailURL: str
 
 
 class Song(SongVideoData):
+    publishedType: int
     vocal: str
     illustrations: str
     movie: str

@@ -35,7 +35,7 @@ class SongsDatabase:
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
                     publishedTimestamp INTEGER NOT NULL,
-                    isPublishedInOriginalChannel BOOLEAN NOT NULL,
+                    publishedType INTEGER NOT NULL,
                     durationSeconds INTEGER NOT NULL,
                     thumbnailURL TEXT NOT NULL,
                     vocal TEXT NOT NULL,
@@ -69,7 +69,7 @@ class SongsDatabase:
                 conn.execute(
                     """
                     INSERT INTO songs (
-                        id, title, publishedTimestamp, isPublishedInOriginalChannel,
+                        id, title, publishedTimestamp, publishedType,
                         durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                         chordRate6451, chordRate4561, mainChord, pianoRate,
                         modulationTimes, comment
@@ -79,7 +79,7 @@ class SongsDatabase:
                         song.id,
                         song.title,
                         song.publishedTimestamp,
-                        song.isPublishedInOriginalChannel,
+                        song.publishedType,
                         song.durationSeconds,
                         song.thumbnailURL,
                         song.vocal,
@@ -148,7 +148,7 @@ class SongsDatabase:
             cursor = conn.execute(
                 """
                 UPDATE songs SET
-                    title = ?, publishedTimestamp = ?, isPublishedInOriginalChannel = ?,
+                    title = ?, publishedTimestamp = ?, publishedType = ?,
                     durationSeconds = ?, thumbnailURL = ?, vocal = ?, illustrations = ?, movie = ?,
                     bpm = ?, mainKey = ?, chordRate6451 = ?, chordRate4561 = ?,
                     mainChord = ?, pianoRate = ?, modulationTimes = ?, comment = ?
@@ -157,7 +157,7 @@ class SongsDatabase:
                 (
                     song.title,
                     song.publishedTimestamp,
-                    song.isPublishedInOriginalChannel,
+                    song.publishedType,
                     song.durationSeconds,
                     song.thumbnailURL,
                     song.vocal,
@@ -196,14 +196,13 @@ class SongsDatabase:
                 cursor.execute(
                     """
                     UPDATE songs SET
-                        title = ?, publishedTimestamp = ?, isPublishedInOriginalChannel = ?,
+                        title = ?, publishedTimestamp = ?,
                         durationSeconds = ?, thumbnailURL = ?
                     WHERE id = ?
                 """,
                     (
                         song.title,
                         song.publishedTimestamp,
-                        song.isPublishedInOriginalChannel,
                         song.durationSeconds,
                         song.thumbnailURL,
                         song.id,
@@ -257,12 +256,10 @@ class SongsDatabase:
                 "id",
                 "mainChord",
                 "mainKey",
+                "publishedType",
             ]:
                 conditions.append(f"{key} = ?")
                 params.append(value)
-            elif key in ["isPublishedInOriginalChannel"]:
-                conditions.append(f"{key} = ?")
-                params.append(bool(value))
 
         if conditions:
             filter = "WHERE " + " AND ".join(conditions)
@@ -313,7 +310,7 @@ class SongsDatabase:
                     conn.execute(
                         """
                         INSERT INTO songs (
-                            id, title, publishedTimestamp, isPublishedInOriginalChannel,
+                            id, title, publishedTimestamp, publishedType,
                             durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                             chordRate6451, chordRate4561, mainChord, pianoRate,
                             modulationTimes, comment
@@ -323,7 +320,7 @@ class SongsDatabase:
                             song.id,
                             song.title,
                             song.publishedTimestamp,
-                            song.isPublishedInOriginalChannel,
+                            song.publishedType,
                             song.durationSeconds,
                             song.thumbnailURL,
                             song.vocal,

@@ -36,7 +36,6 @@ def handle_video_response(item: dict) -> SongVideoData:
         title=snippet.get("title", ""),
         publishedTimestamp=published_timestamp,
         durationSeconds=duration_seconds,
-        isPublishedInOriginalChannel=snippet.get("channelId", "") == os.getenv("OFFICIAL_CHANNEL_ID"),
         thumbnailURL=thumbnail_url,
     )
 
@@ -46,7 +45,7 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
         print("YOUTUBE_DATA_API_KEY is not set.")
         return False
 
-    all_ids = [song.id for song in db.get_all_songs()]
+    all_ids = [song.id for song in db.get_all_songs() if song.publishedType != -1]
 
     songs = []
     async with httpx.AsyncClient() as client:
