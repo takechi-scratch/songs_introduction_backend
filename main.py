@@ -2,18 +2,20 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional, Literal
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, status
 from fastapi.params import Query
 from fastapi.exceptions import HTTPException
+
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import uvicorn
 
 from db.songs_database import SongsDatabase
-from db.update_youtube_data import regist_scheduler
+from db.update_youtube_data import regist_scheduler, fetch_and_update_all
 from utils.config import docs_description
 from utils.songs_class import Song
-from utils.fastapi_models import APIInfo, AdvancedNearestSearch, SongWithScore
+from utils.fastapi_models import APIInfo, AdvancedNearestSearch, SongWithScore, UpsertSong
+from utils.auth import get_current_user, auth_initialize
 
 load_dotenv()
 
@@ -24,6 +26,9 @@ scheduler = None
 async def lifespan(app: FastAPI):
     global scheduler
     scheduler = regist_scheduler(db)
+
+    auth_initialize()
+
     yield
     if scheduler:
         scheduler.shutdown()
@@ -59,6 +64,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 db = SongsDatabase("db/data/songs.db")
 
@@ -180,6 +186,23 @@ async def get_nearest_songs_advanced(data: AdvancedNearestSearch):
         )
         for song_in_queue in songs_queue
     ]
+
+
+@app.post("/songs/{song_id}/")
+async def upsert_song(song: UpsertSong, song_id: str, cred: dict = Depends(get_current_user)):
+    """曲を追加、または更新します。"""
+    if not cred.get("admin", False) or cred.get("editor", False):
+        raise HTTPException(status_code=403, detail="Not authorized to perform this action")
+
+    if db.get_song_by_id(song_id) is not None:
+        db.update_song(song, song_id)
+    else:
+        db.add_song(song)
+
+    success = await fetch_and_update_all(db)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update YouTube data")
+    return db.get_song_by_id(song_id)
 
 
 if __name__ == "__main__":

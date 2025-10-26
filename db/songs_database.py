@@ -134,7 +134,7 @@ class SongsDatabase:
 
             return [Song(**row) for row in rows]
 
-    def update_song(self, song: Song) -> bool:
+    def update_song(self, song: Song, song_id: Optional[str] = None) -> bool:
         """
         楽曲を更新
 
@@ -148,13 +148,15 @@ class SongsDatabase:
             cursor = conn.execute(
                 """
                 UPDATE songs SET
-                    title = ?, publishedTimestamp = ?, publishedType = ?,
+                    id = ?, title = ?, publishedTimestamp = ?, publishedType = ?,
                     durationSeconds = ?, thumbnailURL = ?, vocal = ?, illustrations = ?, movie = ?,
                     bpm = ?, mainKey = ?, chordRate6451 = ?, chordRate4561 = ?,
                     mainChord = ?, pianoRate = ?, modulationTimes = ?, comment = ?
                 WHERE id = ?
             """,
                 (
+                    # song_idは変更前、 song.idは変更後
+                    song.id,
                     song.title,
                     song.publishedTimestamp,
                     song.publishedType,
@@ -171,7 +173,7 @@ class SongsDatabase:
                     song.pianoRate,
                     song.modulationTimes,
                     song.comment,
-                    song.id,
+                    song_id if song_id is not None else song.id,
                 ),
             )
             conn.commit()
