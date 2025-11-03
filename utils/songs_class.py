@@ -12,23 +12,23 @@ class SongVideoData(BaseModel):
     id: str
     title: str
     publishedTimestamp: int
-    durationSeconds: int
-    thumbnailURL: str
+    durationSeconds: Optional[int] = None
+    thumbnailURL: Optional[str] = None
 
 
 class Song(SongVideoData):
     publishedType: int
-    vocal: str
-    illustrations: str
-    movie: str
-    bpm: int
-    mainKey: int
-    chordRate6451: float
-    chordRate4561: float
-    mainChord: str
-    pianoRate: float
-    modulationTimes: int
-    comment: str
+    vocal: Optional[list[str]] = None
+    illustrations: Optional[list[str]] = None
+    movie: Optional[list[str]] = None
+    bpm: Optional[int] = None
+    mainKey: Optional[int] = None
+    chordRate6451: Optional[float] = None
+    chordRate4561: Optional[float] = None
+    mainChord: Optional[str] = None
+    pianoRate: Optional[float] = None
+    modulationTimes: Optional[int] = None
+    comment: Optional[str] = None
 
     def __eq__(self, value):
         if isinstance(value, Song):
@@ -37,6 +37,20 @@ class Song(SongVideoData):
             return self.id == value
         else:
             return NotImplemented
+
+    def score_can_be_calculated(self) -> bool:
+        return (
+            self.vocal is not None
+            and self.illustrations is not None
+            and self.movie is not None
+            and self.bpm is not None
+            and self.mainKey is not None
+            and self.chordRate6451 is not None
+            and self.chordRate4561 is not None
+            and self.mainChord is not None
+            and self.pianoRate is not None
+            and self.modulationTimes is not None
+        )
 
 
 class SongsSTD:
@@ -79,6 +93,12 @@ class SongsMatchScore:
         self.songs_std = songs_std
         self.parameters = parameters
 
+        if not song1.score_can_be_calculated():
+            raise ValueError(f"Song1 (ID: {song1.id}) does not have enough data to calculate score.")
+
+        if not song2.score_can_be_calculated():
+            raise ValueError(f"Song2 (ID: {song2.id}) does not have enough data to calculate score.")
+
         if kwargs:
             [self.__setattr__(key, value) for key, value in kwargs.items()]
         else:
@@ -89,7 +109,7 @@ class SongsMatchScore:
         song1, song2, songs_std = self.song1, self.song2, self.songs_std
 
         if song1.vocal == song2.vocal:
-            if song1.vocal in {"初音ミク", "可不", "重音テトSV"}:
+            if all(v in {"初音ミク", "可不", "重音テトSV"} for v in song1.vocal):
                 self.vocal = 0.3
             else:
                 # "-"（なし）もこっちに含む

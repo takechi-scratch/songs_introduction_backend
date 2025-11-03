@@ -6,7 +6,7 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from db.songs_database import SongsDatabase
-from utils.songs_class import SongVideoData
+from utils.songs_class import Song, SongVideoData
 
 
 def handle_video_response(item: dict) -> SongVideoData:
@@ -67,6 +67,39 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
 
     print(f"Fetched data for {len(songs)} videos from YouTube.")
     return db.update_songs_data_batch(songs)
+
+
+async def fetch_and_update_song(db: SongsDatabase, song: Song | str) -> bool:
+    if not os.getenv("YOUTUBE_DATA_API_KEY"):
+        print("YOUTUBE_DATA_API_KEY is not set.")
+        return False
+
+    if isinstance(song, str):
+        song = db.get_song_by_id(song)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"https://youtube.googleapis.com/youtube/v3/videos",
+            params={
+                "part": "snippet,contentDetails",
+                "id": song.id,
+                "key": os.getenv("YOUTUBE_DATA_API_KEY"),
+            },
+        )
+
+        if response.status_code == 200:
+            raw_data = response.json()
+            if len(raw_data.get("items", [])) == 0:
+                raise ValueError(f"Song with ID {song.id} not found on YouTube.")
+
+            songs_video_data = handle_video_response(raw_data["items"][0])
+
+            new_song = song.model_copy(update=songs_video_data.model_dump())
+        else:
+            raise RuntimeError(f"Error fetching YouTube data: {response.text}")
+
+    print(f"Fetched video data (title: {new_song.title}) from YouTube.")
+    return db.update_song(new_song)
 
 
 def regist_scheduler(db: SongsDatabase) -> AsyncIOScheduler:

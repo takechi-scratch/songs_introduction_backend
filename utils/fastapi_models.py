@@ -1,6 +1,7 @@
+from typing import Optional
 from pydantic import BaseModel, Field, HttpUrl
 
-from utils.songs_class import Song, SongVideoData, SongsCustomParameters
+from utils.songs_class import Song, SongsCustomParameters
 
 
 class APIInfo(BaseModel):
@@ -28,25 +29,25 @@ class AdvancedNearestSearch(BaseModel):
 
 class UpsertSong(BaseModel):
     id: str
-    title: str = ""
-    publishedTimestamp: int = 0
-    durationSeconds: int = 0
-    thumbnailURL: str = ""
+    title: Optional[str] = None
+    publishedTimestamp: Optional[int] = None
+    durationSeconds: Optional[int] = None
+    thumbnailURL: Optional[str] = None
     publishedType: int
-    vocal: str
-    illustrations: str
-    movie: str
-    bpm: int
-    mainKey: int
-    chordRate6451: float
-    chordRate4561: float
-    mainChord: str
-    pianoRate: float
-    modulationTimes: int
-    comment: str
+    vocal: Optional[list[str]] = None
+    illustrations: Optional[list[str]] = None
+    movie: Optional[list[str]] = None
+    bpm: Optional[int] = None
+    mainKey: Optional[int] = None
+    chordRate6451: Optional[float] = None
+    chordRate4561: Optional[float] = None
+    mainChord: Optional[str] = None
+    pianoRate: Optional[float] = None
+    modulationTimes: Optional[int] = None
+    comment: Optional[str] = None
 
     def __eq__(self, value):
-        if isinstance(value, Song):
+        if isinstance(value, (Song, UpsertSong)):
             return self.id == value.id
         elif isinstance(value, str):
             return self.id == value

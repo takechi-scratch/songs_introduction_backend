@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import uvicorn
 
 from db.songs_database import SongsDatabase
-from db.update_youtube_data import regist_scheduler, fetch_and_update_all
+from db.update_youtube_data import fetch_and_update_song, regist_scheduler
 from utils.config import docs_description
 from utils.songs_class import Song
 from utils.fastapi_models import APIInfo, AdvancedNearestSearch, SongWithScore, UpsertSong
@@ -199,9 +199,14 @@ async def upsert_song(song: UpsertSong, song_id: str, cred: dict = Depends(get_c
     else:
         db.add_song(song)
 
-    success = await fetch_and_update_all(db)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update YouTube data")
+    if any(item is None for item in (song.title, song.publishedTimestamp, song.durationSeconds, song.thumbnailURL)):
+        try:
+            await fetch_and_update_song(db, song)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except RuntimeError as e:
+            raise HTTPException(status_code=500, detail="Failed to update YouTube data")
+
     return db.get_song_by_id(song_id)
 
 

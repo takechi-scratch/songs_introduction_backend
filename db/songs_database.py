@@ -1,6 +1,7 @@
 import sqlite3
 import heapq
 from typing import Optional
+import json
 
 from utils.songs_class import (
     Song,
@@ -10,6 +11,11 @@ from utils.songs_class import (
     SongsSTD,
     SongsCustomParameters,
 )
+
+# sqliteでlist型を扱う
+# 参考: https://qiita.com/t4t5u0/items/2e789dfc5edd0d01b8da
+sqlite3.register_adapter(list, lambda l: json.dumps(l, ensure_ascii=False))
+sqlite3.register_converter("LIST", lambda s: json.loads(s))
 
 
 class SongsDatabase:
@@ -24,11 +30,11 @@ class SongsDatabase:
         self.init_database()
 
         if self.get_songs_count() > 0:
-            self.std = SongsSTD(self.get_all_songs())
+            self.std = SongsSTD([song for song in self.get_all_songs() if song.score_can_be_calculated()])
 
     def init_database(self):
         """データベースとテーブルを初期化"""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS songs (
@@ -36,19 +42,19 @@ class SongsDatabase:
                     title TEXT NOT NULL,
                     publishedTimestamp INTEGER NOT NULL,
                     publishedType INTEGER NOT NULL,
-                    durationSeconds INTEGER NOT NULL,
-                    thumbnailURL TEXT NOT NULL,
-                    vocal TEXT NOT NULL,
-                    illustrations TEXT NOT NULL,
-                    movie TEXT NOT NULL,
-                    bpm INTEGER NOT NULL,
-                    mainKey INTEGER NOT NULL,
-                    chordRate6451 REAL NOT NULL,
-                    chordRate4561 REAL NOT NULL,
-                    mainChord TEXT NOT NULL,
-                    pianoRate REAL NOT NULL,
-                    modulationTimes INTEGER NOT NULL,
-                    comment TEXT NOT NULL
+                    durationSeconds INTEGER,
+                    thumbnailURL TEXT,
+                    vocal LIST,
+                    illustrations LIST,
+                    movie LIST,
+                    bpm INTEGER,
+                    mainKey INTEGER,
+                    chordRate6451 REAL,
+                    chordRate4561 REAL,
+                    mainChord TEXT,
+                    pianoRate REAL,
+                    modulationTimes INTEGER,
+                    comment TEXT
                 )
             """
             )
@@ -65,7 +71,7 @@ class SongsDatabase:
             bool: 追加に成功した場合True、既に存在する場合False
         """
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
                 conn.execute(
                     """
                     INSERT INTO songs (
@@ -111,7 +117,7 @@ class SongsDatabase:
         Returns:
             Song: 見つかった楽曲、見つからない場合None
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT * FROM songs WHERE id = ?", (song_id,))
             row = cursor.fetchone()
@@ -127,7 +133,7 @@ class SongsDatabase:
         Returns:
             list[Song]: 全楽曲のリスト
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT * FROM songs ORDER BY publishedTimestamp DESC")
             rows = cursor.fetchall()
@@ -144,7 +150,7 @@ class SongsDatabase:
         Returns:
             bool: 更新に成功した場合True、楽曲が存在しない場合False
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             cursor = conn.execute(
                 """
                 UPDATE songs SET
@@ -157,11 +163,11 @@ class SongsDatabase:
                 (
                     # song_idは変更前、 song.idは変更後
                     song.id,
-                    song.title,
-                    song.publishedTimestamp,
+                    song.title if song.title is not None else "",
+                    song.publishedTimestamp if song.publishedTimestamp is not None else 0,
                     song.publishedType,
-                    song.durationSeconds,
-                    song.thumbnailURL,
+                    song.durationSeconds if song.durationSeconds is not None else 0,
+                    song.thumbnailURL if song.thumbnailURL is not None else "",
                     song.vocal,
                     song.illustrations,
                     song.movie,
@@ -192,7 +198,7 @@ class SongsDatabase:
         if len(songs) == 0:
             return False
 
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             cursor = conn.cursor()
             for song in songs:
                 cursor.execute(
@@ -223,7 +229,7 @@ class SongsDatabase:
         Returns:
             bool: 削除に成功した場合True、楽曲が存在しない場合False
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             cursor = conn.execute("DELETE FROM songs WHERE id = ?", (song_id,))
             conn.commit()
             return cursor.rowcount > 0
@@ -245,21 +251,14 @@ class SongsDatabase:
             if value is None:
                 continue
 
-            if key in [
-                "title",
-                "vocal",
-                "illustrations",
-                "movie",
-                "comment",
-            ]:
+            if key in ["title", "comment"]:
                 conditions.append(f"{key} LIKE ?")
                 params.append(f"%{value}%")
-            elif key in [
-                "id",
-                "mainChord",
-                "mainKey",
-                "publishedType",
-            ]:
+            elif key in ["vocal", "illustrations", "movie"]:
+                conditions.append(f"EXISTS (SELECT 1 FROM json_each({key}) WHERE json_each.value = ?)")
+                params.append(value)
+                # params.append(f'%"{value}"%')
+            elif key in ["id", "mainChord", "mainKey", "publishedType"]:
                 conditions.append(f"{key} = ?")
                 params.append(value)
 
@@ -268,16 +267,22 @@ class SongsDatabase:
         else:
             filter = ""
 
-        order = kwargs.get("order", "publishedTimestamp")
+        order = kwargs.get("order")
+        # kwargsにNoneが入る可能性はある
         if order is None:
             order = "publishedTimestamp"
+
         is_asc = kwargs.get("asc", False)
         if is_asc is None:
             is_asc = False
 
+        # orderとascはパラメータ化できない
         query = f"SELECT * FROM songs {filter} ORDER BY {order} {'ASC' if is_asc else 'DESC'}"
 
-        with sqlite3.connect(self.db_path) as conn:
+        print("Executing query:", query)
+        print("With parameters:", params)
+
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(query, params)
             rows = cursor.fetchall()
@@ -291,7 +296,7 @@ class SongsDatabase:
         Returns:
             int: 楽曲の総数
         """
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             cursor = conn.execute("SELECT COUNT(*) FROM songs")
             return cursor.fetchone()[0]
 
@@ -306,7 +311,7 @@ class SongsDatabase:
             int: 追加に成功した楽曲数
         """
         success_count = 0
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             for song in songs:
                 try:
                     conn.execute(
@@ -347,7 +352,7 @@ class SongsDatabase:
 
     def clear_all_songs(self):
         """全楽曲を削除（デバッグ用）"""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             conn.execute("DELETE FROM songs")
             conn.commit()
 
@@ -365,7 +370,7 @@ class SongsDatabase:
             limit (int, optional): 楽曲の最大数。デフォルトは10。
 
         Raises:
-            ValueError: 曲が見つからない場合
+            ValueError: 曲が見つからない場合、またはスコア計算に必要なデータが不足している場合
 
         Returns:
             list[Song]: 曲調の似た楽曲のリスト
@@ -375,9 +380,15 @@ class SongsDatabase:
             if target is None:
                 raise ValueError(f"Song with id {target} not found in database.")
 
+        if target.score_can_be_calculated() is False:
+            raise ValueError(f"Target song (ID: {target.id}) does not have enough data to calculate score.")
+
         queue = []
         for song in self.get_all_songs():
             if song == target:
+                continue
+
+            if not song.score_can_be_calculated():
                 continue
 
             score = SongsMatchScore(song, target, self.std, parameters)

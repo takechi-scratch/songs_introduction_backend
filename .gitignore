@@ -209,3 +209,4 @@ __marimo__/
 
 # database file
 *.db
+db/data/
