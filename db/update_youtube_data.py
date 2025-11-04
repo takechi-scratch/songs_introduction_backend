@@ -1,12 +1,20 @@
 import os
 import re
 from datetime import datetime
+from logging import getLogger, StreamHandler, DEBUG
 
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from db.songs_database import SongsDatabase
 from utils.songs_class import Song, SongVideoData
+
+logger = getLogger(__name__)
+handler = StreamHandler()
+handler.setLevel(DEBUG)
+logger.setLevel(DEBUG)
+logger.addHandler(handler)
+logger.propagate = False
 
 
 def handle_video_response(item: dict) -> SongVideoData:
@@ -42,7 +50,7 @@ def handle_video_response(item: dict) -> SongVideoData:
 
 async def fetch_and_update_all(db: SongsDatabase) -> bool:
     if not os.getenv("YOUTUBE_DATA_API_KEY"):
-        print("YOUTUBE_DATA_API_KEY is not set.")
+        logger.error("YOUTUBE_DATA_API_KEY is not set.")
         return False
 
     all_ids = [song.id for song in db.get_all_songs() if song.publishedType != -1]
@@ -63,15 +71,15 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
                 data = response.json()
                 songs.extend(handle_video_response(item) for item in data.get("items", []))
             else:
-                print(f"Error fetching YouTube data: {response.text}")
+                logger.error(f"Error fetching YouTube data: {response.text}")
 
-    print(f"Fetched data for {len(songs)} videos from YouTube.")
+    logger.info(f"Fetched data for {len(songs)} videos from YouTube.")
     return db.update_songs_data_batch(songs)
 
 
 async def fetch_youtube_data(db: SongsDatabase, song: Song | str) -> Song:
     if not os.getenv("YOUTUBE_DATA_API_KEY"):
-        print("YOUTUBE_DATA_API_KEY is not set.")
+        logger.error("YOUTUBE_DATA_API_KEY is not set.")
         return False
 
     if isinstance(song, str):
@@ -98,7 +106,7 @@ async def fetch_youtube_data(db: SongsDatabase, song: Song | str) -> Song:
         else:
             raise RuntimeError(f"Error fetching YouTube data: {response.text}")
 
-    print(f"Fetched video data (title: {new_song.title}) from YouTube.")
+    logger.info(f"Fetched video data (title: {new_song.title}) from YouTube.")
     return new_song
 
 
@@ -106,7 +114,7 @@ def regist_scheduler(db: SongsDatabase) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(fetch_and_update_all, "interval", args=[db], hours=24, next_run_time=datetime.now())
     scheduler.start()
-    print("Scheduler started for updating YouTube data every 24 hours.")
+    logger.info("Scheduler started for updating YouTube data every 24 hours.")
     return scheduler
 
 

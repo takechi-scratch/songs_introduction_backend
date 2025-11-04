@@ -1,8 +1,9 @@
 import os
 from contextlib import asynccontextmanager
 from typing import Optional, Literal
+from logging import getLogger, StreamHandler, DEBUG
 
-from fastapi import FastAPI, Depends, status
+from fastapi import FastAPI, Depends
 from fastapi.params import Query
 from fastapi.exceptions import HTTPException
 
@@ -18,6 +19,13 @@ from utils.fastapi_models import APIInfo, AdvancedNearestSearch, SongWithScore, 
 from utils.auth import get_current_user, auth_initialize
 
 load_dotenv()
+
+logger = getLogger(__name__)
+handler = StreamHandler()
+handler.setLevel(DEBUG)
+logger.setLevel(DEBUG)
+logger.addHandler(handler)
+logger.propagate = False
 
 scheduler = None
 

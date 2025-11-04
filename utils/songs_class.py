@@ -242,7 +242,6 @@ class SongsCustomParameters(BaseModel):
         super().__init__(**data)
 
         if self.a is not None:
-            print(self.a)
             return
 
         total_weight = sum(data.values())

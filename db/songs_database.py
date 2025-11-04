@@ -2,6 +2,7 @@ import sqlite3
 import heapq
 from typing import Optional
 import json
+from logging import getLogger, StreamHandler, DEBUG
 
 from utils.songs_class import (
     Song,
@@ -11,6 +12,14 @@ from utils.songs_class import (
     SongsSTD,
     SongsCustomParameters,
 )
+
+
+logger = getLogger(__name__)
+handler = StreamHandler()
+handler.setLevel(DEBUG)
+logger.setLevel(DEBUG)
+logger.addHandler(handler)
+logger.propagate = False
 
 # sqliteでlist型を扱う
 # 参考: https://qiita.com/t4t5u0/items/2e789dfc5edd0d01b8da
@@ -104,7 +113,7 @@ class SongsDatabase:
                 conn.commit()
                 return True
         except sqlite3.IntegrityError as e:
-            print(f"Error adding song: {e}")
+            logger.warning(f"Error adding song: {e}")
             # 同じIDの楽曲が既に存在する場合
             return False
 
@@ -280,8 +289,8 @@ class SongsDatabase:
         # orderとascはパラメータ化できない
         query = f"SELECT * FROM songs {filter} ORDER BY {order} {'ASC' if is_asc else 'DESC'}"
 
-        print("Executing query:", query)
-        print("With parameters:", params)
+        logger.debug(f"Executing query: {query}")
+        logger.debug(f"With parameters: {params}")
 
         with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
             conn.row_factory = sqlite3.Row
