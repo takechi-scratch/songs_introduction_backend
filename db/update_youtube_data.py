@@ -69,7 +69,7 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
     return db.update_songs_data_batch(songs)
 
 
-async def fetch_and_update_song(db: SongsDatabase, song: Song | str) -> bool:
+async def fetch_youtube_data(db: SongsDatabase, song: Song | str) -> Song:
     if not os.getenv("YOUTUBE_DATA_API_KEY"):
         print("YOUTUBE_DATA_API_KEY is not set.")
         return False
@@ -99,7 +99,7 @@ async def fetch_and_update_song(db: SongsDatabase, song: Song | str) -> bool:
             raise RuntimeError(f"Error fetching YouTube data: {response.text}")
 
     print(f"Fetched video data (title: {new_song.title}) from YouTube.")
-    return db.update_song(new_song)
+    return new_song
 
 
 def regist_scheduler(db: SongsDatabase) -> AsyncIOScheduler:

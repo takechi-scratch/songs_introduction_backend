@@ -103,7 +103,8 @@ class SongsDatabase:
                 )
                 conn.commit()
                 return True
-        except sqlite3.IntegrityError:
+        except sqlite3.IntegrityError as e:
+            print(f"Error adding song: {e}")
             # 同じIDの楽曲が既に存在する場合
             return False
 
