@@ -117,6 +117,8 @@ async def filter_songs(
     comment: Optional[str] = None,
     mainChord: Optional[str] = None,
     mainKey: Optional[int] = None,
+    publishedAfter: Optional[int] = None,
+    publishedBefore: Optional[int] = None,
     order: Optional[
         Literal[
             "id",
@@ -146,6 +148,8 @@ async def filter_songs(
         mainKey=mainKey,
         order=order,
         asc=asc,
+        publishedAfter=publishedAfter,
+        publishedBefore=publishedBefore,
     )
     return songs
 

@@ -272,6 +272,13 @@ class SongsDatabase:
                 conditions.append(f"{key} = ?")
                 params.append(value)
 
+            elif key == "publishedAfter":
+                conditions.append("publishedTimestamp >= ?")
+                params.append(value)
+            elif key == "publishedBefore":
+                conditions.append("publishedTimestamp <= ?")
+                params.append(value)
+
         if conditions:
             filter = "WHERE " + " AND ".join(conditions)
         else:
