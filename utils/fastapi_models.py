@@ -53,3 +53,9 @@ class UpsertSong(BaseModel):
             return self.id == value
         else:
             return NotImplemented
+
+
+class CreatePlaylistRequest(BaseModel):
+    title: str = Field(..., description="プレイリストのタイトル", example="MIMIさん曲まとめ")
+    description: str = Field("", description="プレイリストの説明", example="「MIMIさん全曲紹介」で自動作成されました。")
+    video_ids: list[str] = Field(..., description="追加する動画のIDリスト", example=["7xht3kQO_TM"])

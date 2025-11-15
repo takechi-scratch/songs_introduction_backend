@@ -8,6 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from db.songs_database import SongsDatabase
 from utils.songs_class import Song, SongVideoData
+from utils.youtube_data_api import list_videos
 
 logger = getLogger(__name__)
 handler = StreamHandler()
@@ -55,23 +56,7 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
 
     all_ids = [song.id for song in db.get_all_songs() if song.publishedType != -1]
 
-    songs = []
-    async with httpx.AsyncClient() as client:
-        for i in range(0, len(all_ids), 50):
-            response = await client.get(
-                f"https://youtube.googleapis.com/youtube/v3/videos",
-                params={
-                    "part": "snippet,contentDetails",
-                    "id": ",".join(all_ids[i : i + 50]),
-                    "key": os.getenv("YOUTUBE_DATA_API_KEY"),
-                },
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-                songs.extend(handle_video_response(item) for item in data.get("items", []))
-            else:
-                logger.error(f"Error fetching YouTube data: {response.text}")
+    songs = [handle_video_response(item) for item in await list_videos(all_ids)]
 
     logger.info(f"Fetched data for {len(songs)} videos from YouTube.")
     return db.update_songs_data_batch(songs)
@@ -85,26 +70,13 @@ async def fetch_youtube_data(db: SongsDatabase, song: Song | str) -> Song:
     if isinstance(song, str):
         song = db.get_song_by_id(song)
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"https://youtube.googleapis.com/youtube/v3/videos",
-            params={
-                "part": "snippet,contentDetails",
-                "id": song.id,
-                "key": os.getenv("YOUTUBE_DATA_API_KEY"),
-            },
-        )
+    raw_data = await list_videos([song.id])
+    if len(raw_data) == 0:
+        raise ValueError(f"Song with ID {song.id} not found on YouTube.")
 
-        if response.status_code == 200:
-            raw_data = response.json()
-            if len(raw_data.get("items", [])) == 0:
-                raise ValueError(f"Song with ID {song.id} not found on YouTube.")
+    songs_video_data = handle_video_response(raw_data[0])
 
-            songs_video_data = handle_video_response(raw_data["items"][0])
-
-            new_song = song.model_copy(update=songs_video_data.model_dump())
-        else:
-            raise RuntimeError(f"Error fetching YouTube data: {response.text}")
+    new_song = song.model_copy(update=songs_video_data.model_dump())
 
     logger.info(f"Fetched video data (title: {new_song.title}) from YouTube.")
     return new_song

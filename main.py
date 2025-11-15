@@ -15,8 +15,9 @@ from db.songs_database import SongsDatabase
 from db.update_youtube_data import fetch_youtube_data, regist_scheduler
 from utils.config import docs_description
 from utils.songs_class import Song
-from utils.fastapi_models import APIInfo, AdvancedNearestSearch, SongWithScore, UpsertSong
+from utils.fastapi_models import APIInfo, AdvancedNearestSearch, CreatePlaylistRequest, SongWithScore, UpsertSong
 from utils.auth import get_current_user, auth_initialize
+from utils.youtube_data_api import OAuthClient
 
 load_dotenv()
 
@@ -28,6 +29,7 @@ logger.addHandler(handler)
 logger.propagate = False
 
 scheduler = None
+youtube_oauth_client = OAuthClient()
 
 
 @asynccontextmanager
@@ -36,6 +38,9 @@ async def lifespan(app: FastAPI):
     scheduler = regist_scheduler(db)
 
     auth_initialize()
+
+    # YouTube OAuth クライアントを起動
+    await youtube_oauth_client.start()
 
     yield
     if scheduler:
@@ -220,6 +225,33 @@ async def upsert_song(song: UpsertSong, song_id: str, cred: dict = Depends(get_c
         db.add_song(song)
 
     return db.get_song_by_id(song_id)
+
+
+@app.post("/playlists/create/")
+async def create_youtube_playlist(
+    query: CreatePlaylistRequest,
+    cred: dict = Depends(get_current_user),
+):
+    """YouTubeのプレイリストを作成し、指定した動画を追加します。"""
+    if not cred.get("admin", False):
+        raise HTTPException(status_code=403, detail="Not authorized to perform this action")
+
+    playlist_response = await youtube_oauth_client.insert_playlist(
+        query.title,
+        query.description,
+    )
+    if not playlist_response:
+        raise HTTPException(status_code=500, detail="Failed to create YouTube playlist")
+
+    playlist_id = playlist_response.get("id")
+    success = await youtube_oauth_client.insert_playlist_items(playlist_id, query.video_ids)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to add videos to YouTube playlist")
+
+    return {
+        "playlistId": playlist_id,
+        "playlistUrl": f"https://www.youtube.com/playlist?list={playlist_id}",
+    }
 
 
 if __name__ == "__main__":
