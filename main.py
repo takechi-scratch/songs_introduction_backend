@@ -240,12 +240,25 @@ async def create_youtube_playlist(
         query.title,
         query.description,
     )
-    if not playlist_response:
+    if "id" not in playlist_response:
+        if playlist_response.get("status") == 403:
+            raise HTTPException(status_code=503, detail="Backend service are not able to request YouTube Data API")
+
+        if playlist_response.get("status") == 429:
+            raise HTTPException(status_code=429, detail="Rate limit exceeded when creating YouTube playlist")
+
         raise HTTPException(status_code=500, detail="Failed to create YouTube playlist")
 
     playlist_id = playlist_response.get("id")
-    success = await youtube_oauth_client.insert_playlist_items(playlist_id, query.video_ids)
-    if not success:
+    status = await youtube_oauth_client.insert_playlist_items(playlist_id, query.video_ids)
+    print(status)
+    if status != 200:
+        if status == 403:
+            raise HTTPException(status_code=503, detail="Backend service are not able to request YouTube Data API")
+
+        if status == 429:
+            raise HTTPException(status_code=429, detail="Rate limit exceeded when adding videos to YouTube playlist")
+
         raise HTTPException(status_code=500, detail="Failed to add videos to YouTube playlist")
 
     return {

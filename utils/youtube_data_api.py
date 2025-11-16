@@ -1,6 +1,7 @@
 import os
 from logging import getLogger, StreamHandler, DEBUG
 import httpx
+import asyncio
 
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -115,46 +116,11 @@ class OAuthClient:
 
             if response.status_code != 200:
                 logger.error(f"Error creating YouTube playlist: {response.text}")
-                return {}
+                return {"status": response.status_code}
 
             return response.json()
 
-    async def insert_playlist_items(self, playlist_id: str, video_ids: list[str]) -> bool:
-        if not self.access_token:
-            await self.refresh_access_token()
-
-        async with httpx.AsyncClient() as client:
-            for video_id in video_ids:
-                response = await client.post(
-                    "https://youtube.googleapis.com/youtube/v3/playlistItems",
-                    params={"part": "snippet"},
-                    headers={
-                        "Authorization": f"Bearer {self.access_token}",
-                        "Accept": "application/json",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "snippet": {
-                            "playlistId": playlist_id,
-                            "resourceId": {
-                                "kind": "youtube#video",
-                                "videoId": video_id,
-                            },
-                        }
-                    },
-                )
-
-                if response.status_code != 200:
-                    logger.error(f"Error adding video {video_id} to playlist: {response.text}")
-                    return False
-
-        return True
-
-
-"""
-# 速すぎたのかまさかの409エラーになったのでボツ
-
-    async def insert_playlist_items(self, playlist_id: str, video_ids: list[str]) -> bool:
+    async def insert_playlist_items(self, playlist_id: str, video_ids: list[str]) -> int:
         if not self.access_token:
             await self.refresh_access_token()
 
@@ -166,24 +132,27 @@ class OAuthClient:
         }
 
         async with httpx.AsyncClient() as client:
-            results = await asyncio.gather(
-                *[
-                    client.post(
+            results = []
+            for video_id in video_ids:
+                results.append(
+                    await client.post(
                         url,
                         params={"part": "snippet"},
                         headers=headers,
                         json=self._playlist_items_payload(playlist_id, video_id),
                     )
-                    for video_id in video_ids
-                ]
-            )
+                )
+                await asyncio.sleep(0.6)
+
+            asyncio.gather(*results)
+            status = 200
 
             for res in results:
                 if res.status_code != 200:
                     logger.error(f"Error adding video to playlist: {res.text}")
-                    return False
+                    status = res.status_code
 
-        return True
+        return status
 
     def _playlist_items_payload(self, playlist_id: str, video_id: str) -> dict:
         return {
@@ -195,4 +164,3 @@ class OAuthClient:
                 },
             }
         }
-"""
