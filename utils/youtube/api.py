@@ -132,19 +132,19 @@ class OAuthClient:
         }
 
         async with httpx.AsyncClient() as client:
-            results = []
+            tasks = []
             for video_id in video_ids:
-                results.append(
-                    await client.post(
+                await asyncio.sleep(1)
+                tasks.append(
+                    client.post(
                         url,
                         params={"part": "snippet"},
                         headers=headers,
                         json=self._playlist_items_payload(playlist_id, video_id),
                     )
                 )
-                await asyncio.sleep(0.6)
 
-            asyncio.gather(*results)
+            results = await asyncio.gather(*tasks)
             status = 200
 
             for res in results:

@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from db.songs_database import SongsDatabase
 from utils.songs_class import Song, SongVideoData
-from utils.youtube_data_api import list_videos
+from utils.youtube.api import list_videos
 
 logger = getLogger(__name__)
 handler = StreamHandler()

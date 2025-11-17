@@ -17,7 +17,8 @@ from utils.config import docs_description
 from utils.songs_class import Song
 from utils.fastapi_models import APIInfo, AdvancedNearestSearch, CreatePlaylistRequest, SongWithScore, UpsertSong
 from utils.auth import get_current_user, auth_initialize
-from utils.youtube_data_api import OAuthClient
+from utils.youtube.api import OAuthClient
+from utils.youtube.playlists import PlaylistManager
 
 load_dotenv()
 
@@ -30,6 +31,7 @@ logger.propagate = False
 
 scheduler = None
 youtube_oauth_client = OAuthClient()
+playlist_manager = PlaylistManager(youtube_oauth_client)
 
 
 @asynccontextmanager
@@ -236,35 +238,11 @@ async def create_youtube_playlist(
     if not cred.get("admin", False):
         raise HTTPException(status_code=403, detail="Not authorized to perform this action")
 
-    playlist_response = await youtube_oauth_client.insert_playlist(
-        query.title,
-        query.description,
-    )
-    if "id" not in playlist_response:
-        if playlist_response.get("status") == 403:
-            raise HTTPException(status_code=503, detail="Backend service are not able to request YouTube Data API")
-
-        if playlist_response.get("status") == 429:
-            raise HTTPException(status_code=429, detail="Rate limit exceeded when creating YouTube playlist")
-
-        raise HTTPException(status_code=500, detail="Failed to create YouTube playlist")
-
-    playlist_id = playlist_response.get("id")
-    status = await youtube_oauth_client.insert_playlist_items(playlist_id, query.video_ids)
-    print(status)
-    if status != 200:
-        if status == 403:
-            raise HTTPException(status_code=503, detail="Backend service are not able to request YouTube Data API")
-
-        if status == 429:
-            raise HTTPException(status_code=429, detail="Rate limit exceeded when adding videos to YouTube playlist")
-
-        raise HTTPException(status_code=500, detail="Failed to add videos to YouTube playlist")
-
-    return {
-        "playlistId": playlist_id,
-        "playlistUrl": f"https://www.youtube.com/playlist?list={playlist_id}",
-    }
+    try:
+        playlist = await playlist_manager.create_playlist(query.title, query.description, query.video_ids)
+        return playlist
+    except HTTPException as e:
+        raise e
 
 
 if __name__ == "__main__":
