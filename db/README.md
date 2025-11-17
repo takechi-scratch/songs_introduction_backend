@@ -15,11 +15,11 @@ song = Song(
     id="song001",
     title="サンプル楽曲",
     publishedTimestamp=1694000000,
-    isPublishedInOriginalChannel=True,
+    publishedType=1,
     durationSeconds=240,
-    vocal="初音ミク",
-    illustrations="イラストレーター名",
-    movie="動画制作者名",
+    vocal=["初音ミク"],
+    illustrations=["イラストレーター名"],
+    movie=["動画制作者名"],
     bpm=120,
     mainKey=60,
     chordRate6451=0.5,
@@ -79,7 +79,7 @@ fast_songs = db.search_songs(bpm=150)
 specific_songs = db.search_songs(
     vocal="初音ミク",
     mainChord="C",
-    isPublishedInOriginalChannel=True
+    publishedType=1
 )
 
 # タイトルの部分一致検索
@@ -113,6 +113,62 @@ if success:
 db.clear_all_songs()
 ```
 
+### 6. 類似楽曲の検索（Similarity Search）
+
+```python
+# 楽曲に似た曲を検索
+target_song = db.get_song_by_id("song001")
+similar_songs = db.find_nearest_song(target_song, limit=10)
+
+# 楽曲IDで類似曲を検索
+similar_songs = db.find_nearest_song("song001", limit=5)
+
+# カスタムパラメータで類似度を調整
+from utils.songs_class import SongsCustomParameters
+params = SongsCustomParameters(
+    vocal=3.0,
+    illustrations=1.0,
+    movie=1.0,
+    bpm=5.0,
+    chordRate6451=3.0,
+    chordRate4561=1.0,
+    pianoRate=2.0,
+    mainKey=2.0,
+    mainChord=2.0,
+    modulationTimes=1.0
+)
+similar_songs = db.find_nearest_song("song001", limit=10, parameters=params)
+```
+
+### 7. 楽曲データの一括更新（Batch Update）
+
+```python
+from utils.songs_class import SongVideoData
+
+# 動画情報を更新するデータを作成
+updates = [
+    SongVideoData(
+        id="song001",
+        title="更新されたタイトル",
+        publishedTimestamp=1694100000,
+        durationSeconds=250,
+        thumbnailURL="https://example.com/thumb1.jpg"
+    ),
+    SongVideoData(
+        id="song002",
+        title="別の更新タイトル",
+        publishedTimestamp=1694200000,
+        durationSeconds=180,
+        thumbnailURL="https://example.com/thumb2.jpg"
+    )
+]
+
+# 一括更新を実行
+success = db.update_songs_data_batch(updates)
+if success:
+    print("楽曲データが一括更新されました")
+```
+
 ## データベーステーブル構造
 
 ```sql
@@ -120,32 +176,57 @@ CREATE TABLE songs (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     publishedTimestamp INTEGER NOT NULL,
-    isPublishedInOriginalChannel BOOLEAN NOT NULL,
-    durationSeconds INTEGER NOT NULL,
-    thumbnailURL TEXT NOT NULL,
-    vocal TEXT NOT NULL,
-    illustrations TEXT NOT NULL,
-    movie TEXT NOT NULL,
-    bpm INTEGER NOT NULL,
-    mainKey INTEGER NOT NULL,
-    chordRate6451 REAL NOT NULL,
-    chordRate4561 REAL NOT NULL,
-    mainChord TEXT NOT NULL,
-    pianoRate REAL NOT NULL,
-    modulationTimes INTEGER NOT NULL,
-    comment TEXT NOT NULL
+    publishedType INTEGER NOT NULL,
+    durationSeconds INTEGER,
+    thumbnailURL TEXT,
+    vocal LIST,
+    illustrations LIST,
+    movie LIST,
+    bpm INTEGER,
+    mainKey INTEGER,
+    chordRate6451 REAL,
+    chordRate4561 REAL,
+    mainChord TEXT,
+    pianoRate REAL,
+    modulationTimes INTEGER,
+    comment TEXT
 )
 ```
+
+## フィールド説明
+
+| フィールド名 | 型 | 必須 | 説明 |
+|------------|-----|------|------|
+| id | TEXT | ✓ | 楽曲の一意な識別子 |
+| title | TEXT | ✓ | 楽曲タイトル |
+| publishedTimestamp | INTEGER | ✓ | 公開日時（Unixタイムスタンプ） |
+| publishedType | INTEGER | ✓ | 公開タイプ（0: 再投稿, 1: オリジナルチャンネル） |
+| durationSeconds | INTEGER | | 楽曲の長さ（秒） |
+| thumbnailURL | TEXT | | サムネイルURL |
+| vocal | LIST | | ボーカル名のリスト（例: ["初音ミク"]） |
+| illustrations | LIST | | イラストレーター名のリスト |
+| movie | LIST | | 動画制作者名のリスト |
+| bpm | INTEGER | | テンポ（BPM） |
+| mainKey | INTEGER | | 主調（MIDIノート番号） |
+| chordRate6451 | REAL | | コード進行6451の出現率 |
+| chordRate4561 | REAL | | コード進行4561の出現率 |
+| mainChord | TEXT | | 主要コード |
+| pianoRate | REAL | | ピアノ音色の使用率 |
+| modulationTimes | INTEGER | | 転調回数 |
+| comment | TEXT | | コメント・説明 |
 
 ## 検索可能なフィールド
 
 ### 完全一致検索
 - `id`, `bpm`, `mainKey`, `modulationTimes`, `durationSeconds`, `publishedTimestamp`
-- `isPublishedInOriginalChannel` (boolean)
+- `publishedType` (integer: 0 or 1)
 - `chordRate6451`, `chordRate4561`, `pianoRate` (float)
 
 ### 部分一致検索（LIKE）
-- `title`, `vocal`, `illustrations`, `movie`, `mainChord`, `comment`
+- `title`, `mainChord`, `comment`
+
+### リスト内検索
+- `vocal`, `illustrations`, `movie` - リスト内の値で検索
 
 ## エラーハンドリング
 
