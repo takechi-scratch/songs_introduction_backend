@@ -14,6 +14,9 @@ from utils.songs_class import Song
 def test_batch_add():
     # データベースを初期化
     db = SongsDatabase("db/data/test_batch_songs.db")
+    
+    # テスト前にデータベースをクリア
+    db.clear_all_songs()
 
     # テスト用の複数のSongオブジェクトを作成
     test_songs = [
@@ -21,11 +24,11 @@ def test_batch_add():
             id="batch001",
             title="バッチテスト楽曲1",
             publishedTimestamp=1694000000,
-            isPublishedInOriginalChannel=True,
+            publishedType=1,
             durationSeconds=240,
-            vocal="初音ミク",
-            illustrations="テストイラスト1",
-            movie="テスト動画1",
+            vocal=["初音ミク"],
+            illustrations=["テストイラスト1"],
+            movie=["テスト動画1"],
             bpm=120,
             mainKey=60,
             chordRate6451=0.5,
@@ -39,11 +42,11 @@ def test_batch_add():
             id="batch002",
             title="バッチテスト楽曲2",
             publishedTimestamp=1694001000,
-            isPublishedInOriginalChannel=False,
+            publishedType=0,
             durationSeconds=180,
-            vocal="鏡音リン",
-            illustrations="テストイラスト2",
-            movie="テスト動画2",
+            vocal=["鏡音リン"],
+            illustrations=["テストイラスト2"],
+            movie=["テスト動画2"],
             bpm=140,
             mainKey=62,
             chordRate6451=0.6,
@@ -57,11 +60,11 @@ def test_batch_add():
             id="batch003",
             title="バッチテスト楽曲3",
             publishedTimestamp=1694002000,
-            isPublishedInOriginalChannel=True,
+            publishedType=1,
             durationSeconds=300,
-            vocal="巡音ルカ",
-            illustrations="テストイラスト3",
-            movie="テスト動画3",
+            vocal=["巡音ルカ"],
+            illustrations=["テストイラスト3"],
+            movie=["テスト動画3"],
             bpm=100,
             mainKey=64,
             chordRate6451=0.4,

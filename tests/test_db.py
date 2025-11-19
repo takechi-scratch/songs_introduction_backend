@@ -14,17 +14,20 @@ from utils.songs_class import Song
 def test_database():
     # データベースを初期化
     db = SongsDatabase("db/data/test_songs.db")
+    
+    # テスト前にデータベースをクリア
+    db.clear_all_songs()
 
     # テスト用のSongオブジェクトを作成
     test_song = Song(
         id="test001",
         title="テスト楽曲",
         publishedTimestamp=1694000000,
-        isPublishedInOriginalChannel=True,
+        publishedType=1,
         durationSeconds=240,
-        vocal="初音ミク",
-        illustrations="テストイラスト",
-        movie="テスト動画",
+        vocal=["初音ミク"],
+        illustrations=["テストイラスト"],
+        movie=["テスト動画"],
         bpm=120,
         mainKey=60,
         chordRate6451=0.5,
