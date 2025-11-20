@@ -131,20 +131,21 @@ class OAuthClient:
             "Content-Type": "application/json",
         }
 
+        # 非同期リクエストは409の恐れがあるのでやらない
         async with httpx.AsyncClient() as client:
-            tasks = []
+            results = []
             for video_id in video_ids:
-                await asyncio.sleep(1)
-                tasks.append(
-                    client.post(
+                results.append(
+                    await client.post(
                         url,
                         params={"part": "snippet"},
                         headers=headers,
                         json=self._playlist_items_payload(playlist_id, video_id),
                     )
                 )
+                logger.debug(f"Added video {video_id} to playlist {playlist_id}.")
 
-            results = await asyncio.gather(*tasks)
+            # results = await asyncio.gather(*tasks)
             status = 200
 
             for res in results:
