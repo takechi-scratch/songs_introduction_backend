@@ -22,7 +22,7 @@ The client's source code is publicly available on GitHub:
 - Frontend: https://github.com/takechi-scratch/songs_introduction_www
 - Backend: https://github.com/takechi-scratch/songs_introduction_backend
 
-Here, we introduce the code that uses the YouTube Data API in the backend.
+Here, I introduce the code that uses the YouTube Data API in the backend.
 
 
 ### 1. `api.py` - Core API Client
