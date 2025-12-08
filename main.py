@@ -1,24 +1,21 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
-from typing import Optional, Literal
 from logging import getLogger, StreamHandler, DEBUG
 
-from fastapi import FastAPI, Depends
-from fastapi.params import Query
-from fastapi.exceptions import HTTPException
+from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import uvicorn
 
 from db.songs_database import SongsDatabase
-from db.update_youtube_data import fetch_youtube_data, regist_scheduler
-from utils.config import docs_description
-from utils.songs_class import Song
-from utils.fastapi_models import APIInfo, AdvancedNearestSearch, CreatePlaylistRequest, SongWithScore, UpsertSong
-from utils.auth import get_current_user, auth_initialize
+from db.update_youtube_data import regist_scheduler
+from utils.config import Config, ConfigStore, docs_description
+from utils.auth import auth_initialize
 from utils.youtube.api import OAuthClient
 from utils.youtube.playlists import PlaylistManager
+from routers import admin, general, search, songs, youtube
 
 load_dotenv()
 
@@ -30,16 +27,19 @@ logger.addHandler(handler)
 logger.propagate = False
 
 scheduler = None
-youtube_oauth_client = OAuthClient()
-playlist_manager = PlaylistManager(youtube_oauth_client)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global scheduler
-    scheduler = regist_scheduler(db)
+    app.state.db = SongsDatabase("db/data/songs.db")
+    scheduler = regist_scheduler(app.state.db)
 
     auth_initialize()
+
+    app.state.config_store = ConfigStore()
+    youtube_oauth_client = OAuthClient()
+    app.state.playlist_manager = PlaylistManager(youtube_oauth_client)
 
     # YouTube OAuth クライアントを起動
     await youtube_oauth_client.start()
@@ -47,6 +47,27 @@ async def lifespan(app: FastAPI):
     yield
     if scheduler:
         scheduler.shutdown()
+
+
+tags_metadata = [
+    {
+        "name": "General",
+        "description": "APIに関する情報を取得",
+    },
+    {
+        "name": "Songs",
+        "description": "曲情報の取得・更新",
+    },
+    {
+        "name": "Search",
+        "description": "曲の検索",
+    },
+    {
+        "name": "YouTube",
+        "description": "YouTube関連の操作",
+    },
+    {"name": "Admin", "description": "管理者用(認証が必要)"},
+]
 
 
 app = FastAPI(
@@ -62,13 +83,20 @@ app = FastAPI(
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
-    # openapi_tags=tags_metadata,
+    openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
 
+# ConfigStoreは同期的に読み込む
+config_store = ConfigStore()
+# 内部の _config は __init__ で既に読み込まれている
+config = config_store._config
+
+if config is None:
+    raise RuntimeError("Config not initialized.")
 
 origins = [
-    os.getenv("PRODUCTION_URL", "http://localhost:3000"),
+    config.production_url if config.production_url else "http://localhost:3000",
     "http://localhost:8787",
 ]
 
@@ -80,173 +108,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-db = SongsDatabase("db/data/songs.db")
-
-
-@app.get("/", response_model=APIInfo)
-async def api_info():
-    """APIの基本情報を取得します。"""
-    return APIInfo()
-
-
-@app.get("/songs/{song_id}/", response_model=Song)
-async def get_song_info(song_id: str):
-    """指定した曲の情報を取得します。"""
-    song = db.get_song_by_id(song_id)
-    if not song:
-        raise HTTPException(status_code=404, detail="Song not found")
-    return song
-
-
-@app.get("/songs_all/", response_model=list[Song])
-async def get_all_songs():
-    """全ての曲の情報を取得します。"""
-    songs = db.get_all_songs()
-    return songs
-
-
-@app.get("/songs_count/")
-async def get_songs_count():
-    """データベース内の曲数を取得します。"""
-    count = db.get_songs_count()
-    return {"count": count}
-
-
-@app.get("/search/filter/", response_model=list[Song])
-async def filter_songs(
-    id: Optional[str] = None,
-    title: Optional[str] = None,
-    publishedType: Optional[bool] = None,
-    vocal: Optional[str] = None,
-    illustrations: Optional[str] = None,
-    movie: Optional[str] = None,
-    comment: Optional[str] = None,
-    mainChord: Optional[str] = None,
-    mainKey: Optional[int] = None,
-    publishedAfter: Optional[int] = None,
-    publishedBefore: Optional[int] = None,
-    order: Optional[
-        Literal[
-            "id",
-            "title",
-            "publishedTimestamp",
-            "durationSeconds",
-            "bpm",
-            "mainKey",
-            "chordRate6451",
-            "chordRate4561",
-            "pianoRate",
-            "modulationTimes",
-        ]
-    ] = None,
-    asc: Optional[bool] = Query(None),
-):
-    """指定した条件に基づいて曲を検索します。"""
-    songs = db.search_songs(
-        id=id,
-        title=title,
-        publishedType=publishedType,
-        vocal=vocal,
-        illustrations=illustrations,
-        movie=movie,
-        comment=comment,
-        mainChord=mainChord,
-        mainKey=mainKey,
-        order=order,
-        asc=asc,
-        publishedAfter=publishedAfter,
-        publishedBefore=publishedBefore,
-    )
-    return songs
-
-
-@app.get("/search/nearest/", response_model=list[SongWithScore])
-async def get_nearest_songs(target_song_id: str, limit: int = Query(10, ge=1)):
-    """指定した条件に基づいて、最も近い曲を検索します。"""
-    try:
-        songs_queue = db.find_nearest_song(target_song_id, limit)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="Target song not found")
-
-    if not songs_queue:
-        raise HTTPException(status_code=404, detail="No similar songs found")
-    return [
-        SongWithScore(
-            id=song_in_queue.song.id,
-            song=song_in_queue.song,
-            score=float(song_in_queue.score),
-        )
-        for song_in_queue in songs_queue
-    ]
-
-
-@app.post("/search/nearest_advanced/", response_model=list[SongWithScore])
-async def get_nearest_songs_advanced(data: AdvancedNearestSearch):
-    """指定した条件に基づいて、最も近い曲を検索します。"""
-
-    try:
-        songs_queue = db.find_nearest_song(
-            data.target_song_id,
-            data.limit,
-            data.parameters,
-            data.is_reversed,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="Target song not found")
-
-    if not songs_queue:
-        raise HTTPException(status_code=404, detail="No similar songs found")
-    return [
-        SongWithScore(
-            id=song_in_queue.song.id,
-            song=song_in_queue.song,
-            score=float(song_in_queue.score),
-        )
-        for song_in_queue in songs_queue
-    ]
-
-
-@app.post("/songs/{song_id}/")
-async def upsert_song(song: UpsertSong, song_id: str, cred: dict = Depends(get_current_user)):
-    """曲を追加、または更新します。"""
-    if not cred.get("admin", False) or cred.get("editor", False):
-        raise HTTPException(status_code=403, detail="Not authorized to perform this action")
-
-    if any(item is None for item in (song.title, song.publishedTimestamp, song.durationSeconds, song.thumbnailURL)):
-        try:
-            song = await fetch_youtube_data(db, song)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except RuntimeError as e:
-            raise HTTPException(status_code=500, detail="Failed to update YouTube data")
-
-    if db.get_song_by_id(song_id) is not None:
-        db.update_song(song, song_id)
-    else:
-        db.add_song(song)
-
-    return db.get_song_by_id(song_id)
-
-
-@app.post("/playlists/create/")
-async def create_youtube_playlist(
-    query: CreatePlaylistRequest,
-    cred: dict = Depends(get_current_user),
-):
-    """YouTubeのプレイリストを作成し、指定した動画を追加します。"""
-    if not cred.get("admin", False):
-        raise HTTPException(status_code=403, detail="Not authorized to perform this action")
-
-    try:
-        playlist = await playlist_manager.create_playlist(query.title, query.description, query.video_ids)
-        return playlist
-    except HTTPException as e:
-        raise e
-
+app.include_router(admin.router)
+app.include_router(general.router)
+app.include_router(search.router)
+app.include_router(songs.router)
+app.include_router(youtube.router)
 
 if __name__ == "__main__":
-    if os.getenv("ENV") == "development":
-        uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    if config.is_production:
+        uvicorn.run(app, host="0.0.0.0", port=config.port)
     else:
-        uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+        uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

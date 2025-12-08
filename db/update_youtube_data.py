@@ -7,6 +7,7 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from db.songs_database import SongsDatabase
+from utils.config import ConfigStore
 from utils.songs_class import Song, SongVideoData
 from utils.youtube.api import list_videos
 
@@ -16,6 +17,8 @@ handler.setLevel(DEBUG)
 logger.setLevel(DEBUG)
 logger.addHandler(handler)
 logger.propagate = False
+
+config_store = ConfigStore()
 
 
 def handle_video_response(item: dict) -> SongVideoData:
@@ -50,10 +53,6 @@ def handle_video_response(item: dict) -> SongVideoData:
 
 
 async def fetch_and_update_all(db: SongsDatabase) -> bool:
-    if not os.getenv("YOUTUBE_DATA_API_KEY"):
-        logger.error("YOUTUBE_DATA_API_KEY is not set.")
-        return False
-
     all_ids = [song.id for song in db.get_all_songs() if song.publishedType != -1]
 
     songs = [handle_video_response(item) for item in await list_videos(all_ids)]
@@ -63,10 +62,6 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
 
 
 async def fetch_youtube_data(db: SongsDatabase, song: Song | str) -> Song:
-    if not os.getenv("YOUTUBE_DATA_API_KEY"):
-        logger.error("YOUTUBE_DATA_API_KEY is not set.")
-        return False
-
     if isinstance(song, str):
         song = db.get_song_by_id(song)
 

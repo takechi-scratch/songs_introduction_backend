@@ -6,6 +6,8 @@ import asyncio
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from utils.config import ConfigStore
+
 logger = getLogger(__name__)
 handler = StreamHandler()
 handler.setLevel(DEBUG)
@@ -13,12 +15,15 @@ logger.setLevel(DEBUG)
 logger.addHandler(handler)
 logger.propagate = False
 
+config_store = ConfigStore()
 
 # Refresh Tokenの再発行
 # https://developers.google.com/oauthplayground/
 
 
 async def list_videos(video_ids: list[str]) -> list[dict]:
+    config = await config_store.get_config()
+
     res = []
     async with httpx.AsyncClient() as client:
         for i in range(0, len(video_ids), 50):
@@ -27,7 +32,7 @@ async def list_videos(video_ids: list[str]) -> list[dict]:
                 params={
                     "part": "snippet,contentDetails",
                     "id": ",".join(video_ids[i : i + 50]),
-                    "key": os.getenv("YOUTUBE_DATA_API_KEY"),
+                    "key": config.youtube_data_api_key,
                 },
             )
 
@@ -42,13 +47,6 @@ async def list_videos(video_ids: list[str]) -> list[dict]:
 
 class OAuthClient:
     def __init__(self):
-        self.client_id = os.getenv("YOUTUBE_OAUTH_CLIENT_ID")
-        self.client_secret = os.getenv("YOUTUBE_OAUTH_CLIENT_SECRET")
-        self.refresh_token = os.getenv("YOUTUBE_OAUTH_REFRESH_TOKEN")
-
-        if not all([self.client_id, self.client_secret, self.refresh_token]):
-            logger.error("OAuth2 credentials are not fully set.")
-
         self.scheduler = AsyncIOScheduler()
         self.access_token = None
         self._started = False
@@ -64,13 +62,15 @@ class OAuthClient:
         logger.info("OAuthClient started successfully.")
 
     async def refresh_access_token(self) -> dict:
+        config = await config_store.get_config()
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://oauth2.googleapis.com/token",
                 data={
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                    "refresh_token": self.refresh_token,
+                    "client_id": config.youtube_oauth_client_id,
+                    "client_secret": config.youtube_oauth_client_secret,
+                    "refresh_token": config.youtube_oauth_refresh_token,
                     "grant_type": "refresh_token",
                 },
             )

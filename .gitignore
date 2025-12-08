@@ -144,6 +144,8 @@ ENV/
 env.bak/
 venv.bak/
 serviceAccountKey.json
+*.key
+config
 
 # Spyder project settings
 .spyderproject
