@@ -32,7 +32,7 @@ class ConfigStore:
         self.key_path = key_path
         self.lock = asyncio.Lock()
         self.crypto = self._load_crypto()
-        self._config: Config | None = self._load_config()
+        self._config: Config | dict | None = self._load_config()
 
     def _load_crypto(self):
         # 暗号鍵の読み込み or 生成
@@ -46,7 +46,7 @@ class ConfigStore:
 
         return Fernet(key)
 
-    def _load_config(self) -> Config | None:
+    def _load_config(self) -> Config | dict | None:
         # 設定ファイルが無い場合は None
         if not os.path.exists(self.path):
             return None
@@ -59,10 +59,14 @@ class ConfigStore:
             try:
                 decrypted = self.crypto.decrypt(encrypted)
                 data = json.loads(decrypted.decode("utf-8"))
-                return Config(**data)
             except Exception:
                 # 復号失敗時はファイル破損など
                 return None
+
+            try:
+                return Config(**data)
+            except Exception:
+                return data  # 古い形式などでConfigに変換できない場合
 
     def _save(self):
         if self._config is None:
@@ -82,15 +86,15 @@ class ConfigStore:
     async def get_config(self) -> Config:
         """設定全体を取得"""
         async with self.lock:
-            if self._config is None:
-                raise ValueError("Config not initialized")
+            if not isinstance(self._config, Config):
+                raise ValueError("Config not initialized properly")
             return self._config
 
     async def update_config(self, **kwargs):
         """設定の一部を更新"""
         async with self.lock:
-            if self._config is None:
-                raise ValueError("Config not initialized")
+            if not isinstance(self._config, Config):
+                raise ValueError("Config not initialized properly")
 
             # 現在の設定を辞書に変換して更新
             current_data = self._config.model_dump()
