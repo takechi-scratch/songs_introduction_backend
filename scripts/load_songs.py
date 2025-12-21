@@ -1,10 +1,10 @@
 import httpx
 
-from db.songs_database import SongsDatabase
-from utils.songs_class import Song
+from src.db.songs_database import SongsDatabase
+from src.utils.songs_class import Song
 
 
-async def fetch_songs(url: str, database_path: str = "db/data/songs.db") -> None:
+async def fetch_songs(url: str, database_path: str = "data/songs.db") -> None:
     database = SongsDatabase(database_path)
 
     async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:

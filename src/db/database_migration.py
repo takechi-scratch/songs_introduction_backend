@@ -1,12 +1,12 @@
 # データベース移行用のスクリプト
 
-from db.songs_database import SongsDatabase
+from src.db.songs_database import SongsDatabase
 import json
 
-from utils.songs_class import Song
+from src.utils.songs_class import Song
 
 
-def export_songs(database_path: str = "db/data/songs.db", output_path: str = "exported_songs.json") -> None:
+def export_songs(database_path: str = "data/songs.db", output_path: str = "exported_songs.json") -> None:
     database = SongsDatabase(database_path)
     songs = database.get_all_songs()
     songs_data = [song.model_dump() for song in songs]
@@ -17,9 +17,7 @@ def export_songs(database_path: str = "db/data/songs.db", output_path: str = "ex
     print(f"Exported {len(songs_data)} songs to {output_path}")
 
 
-def load_songs_into_v2(
-    database_path: str = "db/data/songs.db", input_path: str = "db/data/exported_songs.json"
-) -> None:
+def load_songs_into_v2(database_path: str = "data/songs.db", input_path: str = "data/exported_songs.json") -> None:
     database = SongsDatabase(database_path)
 
     with open(input_path, "r", encoding="utf-8") as f:

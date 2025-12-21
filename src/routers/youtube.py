@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from utils.auth import get_current_user
-from utils.dependencies import get_playlist_manager
-from utils.fastapi_models import CreatePlaylistRequest
-from utils.youtube.playlists import PlaylistManager
-from utils.logger import logger
+from src.utils.auth import get_current_user
+from src.utils.dependencies import get_playlist_manager
+from src.utils.fastapi_models import CreatePlaylistRequest
+from src.utils.youtube.playlists import PlaylistManager
+from src.utils.logger import logger
 
 router = APIRouter(tags=["YouTube"])
 

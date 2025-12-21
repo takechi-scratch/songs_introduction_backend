@@ -6,15 +6,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from db.songs_database import SongsDatabase
-from db.update_youtube_data import regist_scheduler
-from discordbot.bot import BackendDiscordClient, default_intents
-from utils.config import ConfigStore, docs_description
-from utils.auth import auth_initialize
-from utils.youtube.api import OAuthClient
-from utils.youtube.playlists import PlaylistManager
-from utils.logger import logger, discord_handler
-from routers import admin, general, search, songs, youtube
+from src.db.songs_database import SongsDatabase
+from src.db.update_youtube_data import regist_scheduler
+from src.discordbot.bot import BackendDiscordClient, default_intents
+from src.utils.config import ConfigStore, docs_description
+from src.utils.auth import auth_initialize
+from src.utils.youtube.api import OAuthClient
+from src.utils.youtube.playlists import PlaylistManager
+from src.utils.logger import logger, discord_handler
+from src.routers import admin, general, search, songs, youtube
 
 
 scheduler = None
@@ -23,7 +23,7 @@ scheduler = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global scheduler
-    app.state.db = SongsDatabase("db/data/songs.db")
+    app.state.db = SongsDatabase("data/songs.db")
     scheduler = regist_scheduler(app.state.db)
 
     auth_initialize()

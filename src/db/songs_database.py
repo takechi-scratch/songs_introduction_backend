@@ -2,9 +2,9 @@ import sqlite3
 import heapq
 from typing import Optional
 import json
-from utils.logger import logger
+from src.utils.logger import logger
 
-from utils.songs_class import (
+from src.utils.songs_class import (
     Song,
     SongVideoData,
     SongsMatchScore,
@@ -20,7 +20,7 @@ sqlite3.register_converter("LIST", lambda s: json.loads(s))
 
 
 class SongsDatabase:
-    def __init__(self, db_path: str = "db/data/songs.db"):
+    def __init__(self, db_path: str = "data/songs.db"):
         """
         SQLite3を使用したSongsデータベースクラス
 

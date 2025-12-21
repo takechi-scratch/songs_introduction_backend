@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from db.songs_database import SongsDatabase
-from db.update_youtube_data import fetch_youtube_data
-from utils.auth import get_current_user
-from utils.dependencies import get_db
-from utils.fastapi_models import UpsertSong
-from utils.songs_class import Song
+from src.db.songs_database import SongsDatabase
+from src.db.update_youtube_data import fetch_youtube_data
+from src.utils.auth import get_current_user
+from src.utils.dependencies import get_db
+from src.utils.fastapi_models import UpsertSong
+from src.utils.songs_class import Song
 
 
 router = APIRouter(tags=["Songs"])

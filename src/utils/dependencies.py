@@ -1,8 +1,8 @@
 from fastapi import Request
 
-from db.songs_database import SongsDatabase
-from utils.config import ConfigStore
-from utils.youtube.playlists import PlaylistManager
+from src.db.songs_database import SongsDatabase
+from src.utils.config import ConfigStore
+from src.utils.youtube.playlists import PlaylistManager
 
 
 def get_db(request: Request) -> SongsDatabase:

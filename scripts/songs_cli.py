@@ -1,8 +1,8 @@
 # テスト用のCLIスクリプト
 import asyncio
 
-from db.songs_database import SongsDatabase
-from utils.songs_class import SongsMatchScore, Song
+from src.db.songs_database import SongsDatabase
+from src.utils.songs_class import SongsMatchScore, Song
 
 
 class SongsCLI:

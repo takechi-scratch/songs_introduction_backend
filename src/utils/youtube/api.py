@@ -3,8 +3,8 @@ import httpx
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from utils.config import ConfigStore
-from utils.logger import logger
+from src.utils.config import ConfigStore
+from src.utils.logger import logger
 
 config_store = ConfigStore()
 

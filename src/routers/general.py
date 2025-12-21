@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from utils.fastapi_models import APIInfo
+from src.utils.fastapi_models import APIInfo
 
 
 router = APIRouter(tags=["General"])

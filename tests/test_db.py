@@ -7,14 +7,14 @@ import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from db.songs_database import SongsDatabase
-from utils.songs_class import Song
+from src.db.songs_database import SongsDatabase
+from src.utils.songs_class import Song
 
 
 def test_database():
     # データベースを初期化
-    db = SongsDatabase("db/data/test_songs.db")
-    
+    db = SongsDatabase("data/test_songs.db")
+
     # テスト前にデータベースをクリア
     db.clear_all_songs()
 

@@ -3,7 +3,7 @@ import statistics
 from functools import total_ordering
 from typing import Optional
 
-from utils.math import sigmoid, calc_a
+from src.utils.math import sigmoid, calc_a
 
 NATURAL_KEYS = {60, 62, 64, 65, 67, 69, 71}
 

@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel, Field, HttpUrl
 
-from utils.songs_class import Song, SongsCustomParameters
+from src.utils.songs_class import Song, SongsCustomParameters
 
 
 class APIInfo(BaseModel):

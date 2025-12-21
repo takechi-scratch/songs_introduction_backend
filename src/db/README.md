@@ -4,11 +4,11 @@
 ## 基本的な使用方法
 
 ```python
-from db.songs import SongsDatabase
-from utils.songs_class import Song
+from src.db.songs import SongsDatabase
+from src.utils.songs_class import Song
 
 # データベースを初期化
-db = SongsDatabase("db/data/songs.db")  # デフォルトパス
+db = SongsDatabase("data/songs.db")  # デフォルトパス
 
 # 楽曲データを作成
 song = Song(
@@ -124,7 +124,7 @@ similar_songs = db.find_nearest_song(target_song, limit=10)
 similar_songs = db.find_nearest_song("song001", limit=5)
 
 # カスタムパラメータで類似度を調整
-from utils.songs_class import SongsCustomParameters
+from src.utils.songs_class import SongsCustomParameters
 params = SongsCustomParameters(
     vocal=3.0,
     illustrations=1.0,
@@ -143,7 +143,7 @@ similar_songs = db.find_nearest_song("song001", limit=10, parameters=params)
 ### 7. 楽曲データの一括更新（Batch Update）
 
 ```python
-from utils.songs_class import SongVideoData
+from src.utils.songs_class import SongVideoData
 
 # 動画情報を更新するデータを作成
 updates = [

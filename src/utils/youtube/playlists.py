@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from utils.youtube.api import OAuthClient
+from src.utils.youtube.api import OAuthClient
 
 
 class YoutubePlaylist(BaseModel):

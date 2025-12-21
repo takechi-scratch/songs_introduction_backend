@@ -1,5 +1,5 @@
 from logging import getLogger, StreamHandler, DEBUG
-from discordbot.discord_handler import DiscordHandler
+from src.discordbot.discord_handler import DiscordHandler
 from dotenv import load_dotenv
 import os
 

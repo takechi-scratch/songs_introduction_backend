@@ -1,7 +1,7 @@
 import logging
 
-from discordbot.discord_handler import DiscordHandler, default_embed
-from utils.config import ConfigStore
+from src.discordbot.discord_handler import DiscordHandler, default_embed
+from src.utils.config import ConfigStore
 
 config = ConfigStore()._config
 

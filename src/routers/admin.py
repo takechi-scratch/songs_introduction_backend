@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from utils.auth import get_current_user
-from utils.config import ConfigStore
-from utils.dependencies import get_playlist_manager, get_config_store
-from utils.youtube.playlists import PlaylistManager
-from utils.youtube.api import OAuthClient
+from src.utils.auth import get_current_user
+from src.utils.config import ConfigStore
+from src.utils.dependencies import get_playlist_manager, get_config_store
+from src.utils.youtube.playlists import PlaylistManager
+from src.utils.youtube.api import OAuthClient
 
 
 router = APIRouter(tags=["Admin"])

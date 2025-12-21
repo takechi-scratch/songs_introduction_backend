@@ -1,13 +1,13 @@
 import re
 from datetime import datetime
-from utils.logger import logger
+from src.utils.logger import logger
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from db.songs_database import SongsDatabase
-from utils.config import ConfigStore
-from utils.songs_class import Song, SongVideoData
-from utils.youtube.api import list_videos
+from src.db.songs_database import SongsDatabase
+from src.utils.config import ConfigStore
+from src.utils.songs_class import Song, SongVideoData
+from src.utils.youtube.api import list_videos
 
 
 config_store = ConfigStore()
@@ -83,5 +83,5 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    db = SongsDatabase("db/data/songs.db")
+    db = SongsDatabase("data/songs.db")
     asyncio.run(fetch_and_update_all(db))

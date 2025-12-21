@@ -1,10 +1,10 @@
 from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.params import Query
-from db.songs_database import SongsDatabase
-from utils.dependencies import get_db
-from utils.fastapi_models import AdvancedNearestSearch, SongWithScore
-from utils.songs_class import Song
+from src.db.songs_database import SongsDatabase
+from src.utils.dependencies import get_db
+from src.utils.fastapi_models import AdvancedNearestSearch, SongWithScore
+from src.utils.songs_class import Song
 
 router = APIRouter(prefix="/search", tags=["Search"])
 
