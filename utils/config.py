@@ -21,6 +21,9 @@ class Config(BaseModel):
     youtube_oauth_client_id: str
     youtube_oauth_client_secret: str
 
+    discord_channel_id: int
+    discord_token: str
+
     port: int = 8000
 
     user_roles: dict[str, Literal["admin", "editor", "user"]]
@@ -122,6 +125,8 @@ if __name__ == "__main__":
         youtube_oauth_client_id = input("YouTube OAuth Client ID: ")
         youtube_oauth_client_secret = input("YouTube OAuth Client Secret: ")
         user_roles = {}
+        discord_channel_id = int(input("Discord Channel ID: "))
+        discord_token = input("Discord Token: ")
         await store.set_config(
             Config(
                 youtube_data_api_key=youtube_data_api_key,
@@ -131,6 +136,8 @@ if __name__ == "__main__":
                 youtube_oauth_client_id=youtube_oauth_client_id,
                 youtube_oauth_client_secret=youtube_oauth_client_secret,
                 user_roles=user_roles,
+                discord_channel_id=discord_channel_id,
+                discord_token=discord_token,
             )
         )
         print("Config saved.")

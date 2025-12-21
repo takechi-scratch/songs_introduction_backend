@@ -1,18 +1,10 @@
-from logging import getLogger, StreamHandler, DEBUG
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from utils.auth import get_current_user
 from utils.dependencies import get_playlist_manager
 from utils.fastapi_models import CreatePlaylistRequest
 from utils.youtube.playlists import PlaylistManager
-
-logger = getLogger(__name__)
-handler = StreamHandler()
-handler.setLevel(DEBUG)
-logger.setLevel(DEBUG)
-logger.addHandler(handler)
-logger.propagate = False
+from utils.logger import logger
 
 router = APIRouter(tags=["YouTube"])
 

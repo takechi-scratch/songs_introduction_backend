@@ -2,7 +2,7 @@ import sqlite3
 import heapq
 from typing import Optional
 import json
-from logging import getLogger, StreamHandler, DEBUG
+from utils.logger import logger
 
 from utils.songs_class import (
     Song,
@@ -12,14 +12,6 @@ from utils.songs_class import (
     SongsSTD,
     SongsCustomParameters,
 )
-
-
-logger = getLogger(__name__)
-handler = StreamHandler()
-handler.setLevel(DEBUG)
-logger.setLevel(DEBUG)
-logger.addHandler(handler)
-logger.propagate = False
 
 # sqliteでlist型を扱う
 # 参考: https://qiita.com/t4t5u0/items/2e789dfc5edd0d01b8da

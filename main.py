@@ -1,30 +1,21 @@
 import asyncio
-import os
 from contextlib import asynccontextmanager
-from logging import getLogger, StreamHandler, DEBUG
 
 from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 import uvicorn
 
 from db.songs_database import SongsDatabase
 from db.update_youtube_data import regist_scheduler
-from utils.config import Config, ConfigStore, docs_description
+from discordbot.bot import BackendDiscordClient, default_intents
+from utils.config import ConfigStore, docs_description
 from utils.auth import auth_initialize
 from utils.youtube.api import OAuthClient
 from utils.youtube.playlists import PlaylistManager
+from utils.logger import logger, discord_handler
 from routers import admin, general, search, songs, youtube
 
-load_dotenv()
-
-logger = getLogger(__name__)
-handler = StreamHandler()
-handler.setLevel(DEBUG)
-logger.setLevel(DEBUG)
-logger.addHandler(handler)
-logger.propagate = False
 
 scheduler = None
 
@@ -38,15 +29,23 @@ async def lifespan(app: FastAPI):
     auth_initialize()
 
     app.state.config_store = ConfigStore()
+
     youtube_oauth_client = OAuthClient()
+    await youtube_oauth_client.start()
     app.state.playlist_manager = PlaylistManager(youtube_oauth_client)
 
-    # YouTube OAuth クライアントを起動
-    await youtube_oauth_client.start()
+    app.state.discord_client = BackendDiscordClient(intents=default_intents, command_prefix="!")
+    discord_handler.init_bot(bot=app.state.discord_client)
 
+    loop = asyncio.get_event_loop()
+    loop.create_task(app.state.discord_client.start(config.discord_token))
+
+    logger.info("Backend API started successfully.")
     yield
     if scheduler:
         scheduler.shutdown()
+
+    await app.state.discord_client.close()
 
 
 tags_metadata = [

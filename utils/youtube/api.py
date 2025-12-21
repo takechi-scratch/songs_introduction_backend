@@ -1,19 +1,10 @@
-import os
-from logging import getLogger, StreamHandler, DEBUG
 import httpx
-import asyncio
 
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from utils.config import ConfigStore
-
-logger = getLogger(__name__)
-handler = StreamHandler()
-handler.setLevel(DEBUG)
-logger.setLevel(DEBUG)
-logger.addHandler(handler)
-logger.propagate = False
+from utils.logger import logger
 
 config_store = ConfigStore()
 

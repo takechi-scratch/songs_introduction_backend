@@ -1,9 +1,7 @@
-import os
 import re
 from datetime import datetime
-from logging import getLogger, StreamHandler, DEBUG
+from utils.logger import logger
 
-import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from db.songs_database import SongsDatabase
@@ -11,12 +9,6 @@ from utils.config import ConfigStore
 from utils.songs_class import Song, SongVideoData
 from utils.youtube.api import list_videos
 
-logger = getLogger(__name__)
-handler = StreamHandler()
-handler.setLevel(DEBUG)
-logger.setLevel(DEBUG)
-logger.addHandler(handler)
-logger.propagate = False
 
 config_store = ConfigStore()
 
