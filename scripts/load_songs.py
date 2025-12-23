@@ -1,7 +1,7 @@
 import httpx
 
 from src.db.songs_database import SongsDatabase
-from src.utils.songs_class import Song
+from src.utils.songs import Song
 
 
 async def fetch_songs(url: str, database_path: str = "data/songs.db") -> None:

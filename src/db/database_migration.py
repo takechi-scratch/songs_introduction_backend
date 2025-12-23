@@ -3,7 +3,7 @@
 from src.db.songs_database import SongsDatabase
 import json
 
-from src.utils.songs_class import Song
+from src.utils.songs import Song
 
 
 def export_songs(database_path: str = "data/songs.db", output_path: str = "exported_songs.json") -> None:
@@ -61,3 +61,12 @@ def load_songs_into_v2(database_path: str = "data/songs.db", input_path: str = "
     )
 
     print(f"Loaded {len(songs)} songs into version 2")
+
+
+def load_songs_into_v3(database_path: str = "data/songs.db", input_path: str = "data/exported_songs.json") -> None:
+    db = SongsDatabase(database_path)
+
+    with open(input_path, "r", encoding="utf-8") as f:
+        songs = json.load(f)
+
+    db.add_songs_batch([Song(**song) for song in songs])

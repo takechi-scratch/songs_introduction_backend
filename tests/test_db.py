@@ -8,7 +8,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.db.songs_database import SongsDatabase
-from src.utils.songs_class import Song
+from src.utils.songs import Song
 
 
 def test_database():

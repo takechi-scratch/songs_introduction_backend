@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel, Field, HttpUrl
 
-from src.utils.songs_class import Song, SongsCustomParameters
+from src.utils.songs import Song, SongsCustomParameters
 
 
 class APIInfo(BaseModel):
@@ -44,6 +44,7 @@ class UpsertSong(BaseModel):
     mainChord: Optional[str] = None
     pianoRate: Optional[float] = None
     modulationTimes: Optional[int] = None
+    lyricsVector: Optional[list[float]] = None
     comment: Optional[str] = None
 
     def __eq__(self, value):
@@ -59,3 +60,9 @@ class CreatePlaylistRequest(BaseModel):
     title: str = Field(..., description="プレイリストのタイトル", example="MIMIさん曲まとめ")
     description: str = Field("", description="プレイリストの説明", example="「MIMIさん全曲紹介」で自動作成されました。")
     video_ids: list[str] = Field(..., description="追加する動画のIDリスト", example=["7xht3kQO_TM"])
+
+
+class UpsertLyricsVec(BaseModel):
+    id: str = Field(..., description="曲のID")
+    lyricsVector: Optional[list[float]] = Field(default=None, description="歌詞ベクトル情報")
+    lyricsOfficiallyReleased: bool = Field(default=False, description="歌詞が公式から公開されているか")

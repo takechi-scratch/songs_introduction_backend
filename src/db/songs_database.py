@@ -4,12 +4,12 @@ from typing import Optional
 import json
 from src.utils.logger import logger
 
-from src.utils.songs_class import (
+from src.utils.songs import (
     Song,
     SongVideoData,
     SongsMatchScore,
     SongInQueue,
-    SongsSTD,
+    SongsStats,
     SongsCustomParameters,
 )
 
@@ -31,7 +31,7 @@ class SongsDatabase:
         self.init_database()
 
         if self.get_songs_count() > 0:
-            self.std = SongsSTD([song for song in self.get_all_songs() if song.score_can_be_calculated()])
+            self.std = SongsStats([song for song in self.get_all_songs() if song.score_can_be_calculated()])
 
     def init_database(self):
         """データベースとテーブルを初期化"""
@@ -55,6 +55,8 @@ class SongsDatabase:
                     mainChord TEXT,
                     pianoRate REAL,
                     modulationTimes INTEGER,
+                    lyricsVector LIST,
+                    lyricsOfficiallyReleased INTEGER NOT NULL DEFAULT 0,
                     comment TEXT
                 )
             """
@@ -79,8 +81,8 @@ class SongsDatabase:
                         id, title, publishedTimestamp, publishedType,
                         durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                         chordRate6451, chordRate4561, mainChord, pianoRate,
-                        modulationTimes, comment
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        modulationTimes, lyricsVector, lyricsOfficiallyReleased, comment
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         song.id,
@@ -99,6 +101,8 @@ class SongsDatabase:
                         song.mainChord,
                         song.pianoRate,
                         song.modulationTimes,
+                        song.lyricsVector,
+                        int(song.lyricsOfficiallyReleased),
                         song.comment,
                     ),
                 )
@@ -159,7 +163,7 @@ class SongsDatabase:
                     id = ?, title = ?, publishedTimestamp = ?, publishedType = ?,
                     durationSeconds = ?, thumbnailURL = ?, vocal = ?, illustrations = ?, movie = ?,
                     bpm = ?, mainKey = ?, chordRate6451 = ?, chordRate4561 = ?,
-                    mainChord = ?, pianoRate = ?, modulationTimes = ?, comment = ?
+                    mainChord = ?, pianoRate = ?, modulationTimes = ?, lyricsVector = ?, lyricsOfficiallyReleased = ?, comment = ?
                 WHERE id = ?
             """,
                 (
@@ -180,6 +184,8 @@ class SongsDatabase:
                     song.mainChord,
                     song.pianoRate,
                     song.modulationTimes,
+                    song.lyricsVector,
+                    int(song.lyricsOfficiallyReleased),
                     song.comment,
                     song_id if song_id is not None else song.id,
                 ),
@@ -187,9 +193,9 @@ class SongsDatabase:
             conn.commit()
             return cursor.rowcount > 0
 
-    def update_songs_data_batch(self, songs: list[SongVideoData]) -> bool:
+    def update_songs_video_data_batch(self, songs: list[SongVideoData]) -> bool:
         """
-        楽曲を一括更新
+        楽曲の動画情報を一括更新
 
         Args:
             songs: 更新する楽曲データのリスト
@@ -216,6 +222,38 @@ class SongsDatabase:
                         song.durationSeconds,
                         song.thumbnailURL,
                         song.id,
+                    ),
+                )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def update_songs_lyrics_data_batch(self, songs_lyrics_data: dict[str, tuple[list[float], bool]]) -> bool:
+        """
+        楽曲の歌詞ベクトルを一括更新
+
+        Args:
+            songs_lyrics_vector: 更新する楽曲の歌詞ベクトルの辞書
+
+        Returns:
+            bool: 更新に成功した場合True、楽曲が存在しない場合False
+        """
+        if len(songs_lyrics_data) == 0:
+            return False
+
+        with sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES) as conn:
+            cursor = conn.cursor()
+            for song_id, (lyrics_vector, lyrics_officially_released) in songs_lyrics_data.items():
+                cursor.execute(
+                    """
+                    UPDATE songs SET
+                        lyricsVector = ?,
+                        lyricsOfficiallyReleased = ?
+                    WHERE id = ?
+                """,
+                    (
+                        lyrics_vector,
+                        int(lyrics_officially_released),
+                        song_id,
                     ),
                 )
             conn.commit()
@@ -329,8 +367,8 @@ class SongsDatabase:
                             id, title, publishedTimestamp, publishedType,
                             durationSeconds, thumbnailURL, vocal, illustrations, movie, bpm, mainKey,
                             chordRate6451, chordRate4561, mainChord, pianoRate,
-                            modulationTimes, comment
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            modulationTimes, lyricsVector, lyricsOfficiallyReleased, comment
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                         (
                             song.id,
@@ -349,6 +387,8 @@ class SongsDatabase:
                             song.mainChord,
                             song.pianoRate,
                             song.modulationTimes,
+                            song.lyricsVector,
+                            int(song.lyricsOfficiallyReleased),
                             song.comment,
                         ),
                     )

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from pydantic import BaseModel
 
+from src.utils.logger import logger
 from src.utils.youtube.api import OAuthClient
 
 
@@ -47,7 +48,7 @@ class PlaylistManager:
 
         playlist_id = playlist_response.get("id")
         status = await self.oauth_client.insert_playlist_items(playlist_id, video_ids)
-        print(status)
+        logger.info(f"Insert playlist items status: {status}")
         if status != 200:
             if status == 403:
                 raise HTTPException(status_code=503, detail="Backend service are not able to request YouTube Data API")

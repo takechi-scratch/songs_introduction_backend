@@ -6,7 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from src.db.songs_database import SongsDatabase
 from src.utils.config import ConfigStore
-from src.utils.songs_class import Song, SongVideoData
+from src.utils.songs import Song, SongVideoData
 from src.utils.youtube.api import list_videos
 
 
@@ -50,7 +50,7 @@ async def fetch_and_update_all(db: SongsDatabase) -> bool:
     songs = [handle_video_response(item) for item in await list_videos(all_ids)]
 
     logger.info(f"Fetched data for {len(songs)} videos from YouTube.")
-    return db.update_songs_data_batch(songs)
+    return db.update_songs_video_data_batch(songs)
 
 
 async def fetch_youtube_data(db: SongsDatabase, song: Song | str) -> Song:

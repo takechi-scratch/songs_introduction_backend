@@ -6,6 +6,6 @@ def sigmoid(x: float, a: float = 1.0) -> float:
 
 
 def calc_a(x):
-    print(x)
-    print(math.log(1 / 99) / -x)
+    # print(x)
+    # print(math.log(1 / 99) / -x)
     return math.log(1 / 99) / -x

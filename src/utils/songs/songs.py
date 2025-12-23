@@ -4,62 +4,18 @@ from functools import total_ordering
 from typing import Optional
 
 from src.utils.math import sigmoid, calc_a
-
-NATURAL_KEYS = {60, 62, 64, 65, 67, 69, 71}
-
-
-class SongVideoData(BaseModel):
-    id: str
-    title: str
-    publishedTimestamp: int
-    durationSeconds: Optional[int] = None
-    thumbnailURL: Optional[str] = None
+from .lyrics import LyricsVecManager
+from .models import Song, NATURAL_KEYS
 
 
-class Song(SongVideoData):
-    publishedType: int
-    vocal: Optional[list[str]] = None
-    illustrations: Optional[list[str]] = None
-    movie: Optional[list[str]] = None
-    bpm: Optional[int] = None
-    mainKey: Optional[int] = None
-    chordRate6451: Optional[float] = None
-    chordRate4561: Optional[float] = None
-    mainChord: Optional[str] = None
-    pianoRate: Optional[float] = None
-    modulationTimes: Optional[int] = None
-    comment: Optional[str] = None
-
-    def __eq__(self, value):
-        if isinstance(value, Song):
-            return self.id == value.id
-        elif isinstance(value, str):
-            return self.id == value
-        else:
-            return NotImplemented
-
-    def score_can_be_calculated(self) -> bool:
-        return (
-            self.vocal is not None
-            and self.illustrations is not None
-            and self.movie is not None
-            and self.bpm is not None
-            and self.mainKey is not None
-            and self.chordRate6451 is not None
-            and self.chordRate4561 is not None
-            and self.mainChord is not None
-            and self.pianoRate is not None
-            and self.modulationTimes is not None
-        )
-
-
-class SongsSTD:
+class SongsStats:
     def __init__(self, songs: list[Song]):
         self.songs = songs
         self.bpm = statistics.pstdev(song.bpm for song in songs)
         self.chordRate6451 = statistics.pstdev(song.chordRate6451 for song in songs)
         self.chordRate4561 = statistics.pstdev(song.chordRate4561 for song in songs)
         self.pianoRate = statistics.pstdev(song.pianoRate for song in songs)
+        self.lyrics_vec_manager = LyricsVecManager(songs)
 
 
 class SongInQueue:
@@ -84,13 +40,13 @@ class SongsMatchScore:
         self,
         song1: Song,
         song2: Song,
-        songs_std: SongsSTD,
+        songs_stats: SongsStats,
         parameters: Optional["SongsCustomParameters"] = None,
         **kwargs,
     ) -> None:
         self.song1 = song1
         self.song2 = song2
-        self.songs_std = songs_std
+        self.songs_stats = songs_stats
         self.parameters = parameters
 
         if not song1.score_can_be_calculated():
@@ -106,7 +62,7 @@ class SongsMatchScore:
             self._moderate()
 
     def _calculate_diff(self) -> None:
-        song1, song2, songs_std = self.song1, self.song2, self.songs_std
+        song1, song2, songs_stats = self.song1, self.song2, self.songs_stats
 
         if song1.vocal == song2.vocal:
             if all(v in {"初音ミク", "可不", "重音テトSV"} for v in song1.vocal):
@@ -120,13 +76,13 @@ class SongsMatchScore:
         self.illustrations = int(song1.illustrations == song2.illustrations and song1.illustrations != "")
         self.movie = int(song1.movie == song2.movie and song1.movie != "")
 
-        bpm_raw = 1.0 - abs(song1.bpm - song2.bpm) / songs_std.bpm
-        bpm_doubled = 1.0 - abs(max(song1.bpm, song2.bpm) - 2 * min(song1.bpm, song2.bpm)) / songs_std.bpm
+        bpm_raw = 1.0 - abs(song1.bpm - song2.bpm) / songs_stats.bpm
+        bpm_doubled = 1.0 - abs(max(song1.bpm, song2.bpm) - 2 * min(song1.bpm, song2.bpm)) / songs_stats.bpm
         self.bpm = max(bpm_raw, bpm_doubled * 0.5)
 
-        self.chordRate6451 = 1.0 - abs(song1.chordRate6451 - song2.chordRate6451) / songs_std.chordRate6451
-        self.chordRate4561 = 1.0 - abs(song1.chordRate4561 - song2.chordRate4561) / songs_std.chordRate4561
-        self.pianoRate = 1.0 - abs(song1.pianoRate - song2.pianoRate) / songs_std.pianoRate
+        self.chordRate6451 = 1.0 - abs(song1.chordRate6451 - song2.chordRate6451) / songs_stats.chordRate6451
+        self.chordRate4561 = 1.0 - abs(song1.chordRate4561 - song2.chordRate4561) / songs_stats.chordRate4561
+        self.pianoRate = 1.0 - abs(song1.pianoRate - song2.pianoRate) / songs_stats.pianoRate
 
         self.mainKey = 0.0
         if song1.mainKey == song2.mainKey:
@@ -153,6 +109,8 @@ class SongsMatchScore:
 
         self.modulationTimes = 1.0 - abs(min(3, song1.modulationTimes) - min(3, song2.modulationTimes)) * 0.6
 
+        self.lyricsVector = songs_stats.lyrics_vec_manager.lyrics_similarity(song1, song2)
+
     def _moderate(self) -> None:
         """Moderate the values to be within the range [-1, 1]."""
         self.vocal = max(-1, min(1, round(self.vocal, 4)))
@@ -165,6 +123,7 @@ class SongsMatchScore:
         self.mainKey = max(-1, min(1, round(self.mainKey, 4)))
         self.mainChord = max(-1, min(1, round(self.mainChord, 4)))
         self.modulationTimes = max(-1, min(1, round(self.modulationTimes, 4)))
+        self.lyricsVector = max(-1, min(1, round(self.lyricsVector, 4)))
 
     def get_score(self) -> float:
         if self.parameters is not None:
@@ -179,7 +138,8 @@ class SongsMatchScore:
                 + self.pianoRate * p.pianoRate
                 + self.mainKey * p.mainKey
                 + self.mainChord * p.mainChord
-                + self.modulationTimes * p.modulationTimes,
+                + self.modulationTimes * p.modulationTimes
+                + self.lyricsVector * p.lyricsVector,
                 a=p.a,
             )
         else:
@@ -193,7 +153,8 @@ class SongsMatchScore:
                 + self.pianoRate * 0.6  # かなり差が大きいので小さめ
                 + self.mainKey * 0.6
                 + self.mainChord * 0.6
-                + self.modulationTimes * 0.4,
+                + self.modulationTimes * 0.4
+                + self.lyricsVector * 0.8,
                 a=0.74,
             )
 
@@ -201,7 +162,7 @@ class SongsMatchScore:
         return f"{self.get_score() * 100:.2f}%"
 
     def __repr__(self):
-        return f"SongsMatchScore(vocal={self.vocal}, illustrations={self.illustrations}, movie={self.movie}, bpm={self.bpm}, chordRate6451={self.chordRate6451}, chordRate4561={self.chordRate4561}, pianoRate={self.pianoRate}, mainKey={self.mainKey}, mainChord={self.mainChord}, modulationTimes={self.modulationTimes})"
+        return f"SongsMatchScore(vocal={self.vocal}, illustrations={self.illustrations}, movie={self.movie}, bpm={self.bpm}, chordRate6451={self.chordRate6451}, chordRate4561={self.chordRate4561}, pianoRate={self.pianoRate}, mainKey={self.mainKey}, mainChord={self.mainChord}, modulationTimes={self.modulationTimes}, lyricsVector={self.lyricsVector})"
 
     def __float__(self) -> float:
         return self.get_score()
@@ -236,6 +197,7 @@ class SongsCustomParameters(BaseModel):
     mainKey: float
     mainChord: float
     modulationTimes: float
+    lyricsVector: float
     a: Optional[float] = None
 
     def __init__(self, **data):
@@ -260,6 +222,7 @@ if __name__ == "__main__":
         mainKey=2,
         mainChord=2,
         modulationTimes=1,
+        lyricsVector=4,
     )
     print(param)
     print(param.a)
