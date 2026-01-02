@@ -147,6 +147,7 @@ class SongsDatabase:
             return [Song(**row) for row in rows]
 
     def update_song(self, song: Song, song_id: Optional[str] = None) -> bool:
+        # TODO: 渡されるsongは正しくはUpsertSong。要素がNoneの時は更新しないようにする
         """
         楽曲を更新
 

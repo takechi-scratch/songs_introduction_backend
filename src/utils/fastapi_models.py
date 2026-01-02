@@ -45,6 +45,7 @@ class UpsertSong(BaseModel):
     pianoRate: Optional[float] = None
     modulationTimes: Optional[int] = None
     lyricsVector: Optional[list[float]] = None
+    lyricsOfficiallyReleased: Optional[bool] = None
     comment: Optional[str] = None
 
     def __eq__(self, value):
