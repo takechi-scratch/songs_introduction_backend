@@ -3,6 +3,7 @@ import heapq
 from typing import Optional
 import json
 from src.utils.logger import logger
+import shlex
 
 from src.utils.songs import (
     Song,
@@ -12,11 +13,44 @@ from src.utils.songs import (
     SongsStats,
     SongsCustomParameters,
 )
+from src.utils.fastapi_models import SongWithScore
 
 # sqliteでlist型を扱う
 # 参考: https://qiita.com/t4t5u0/items/2e789dfc5edd0d01b8da
 sqlite3.register_adapter(list, lambda l: json.dumps(l, ensure_ascii=False))
 sqlite3.register_converter("LIST", lambda s: json.loads(s))
+
+
+def keyword_to_query(keyword: str, single_query: str, params_template: str = "{}") -> tuple[str, list[str]]:
+    """検索キーワードをSQLのWHERE句とパラメータのリストに変換する
+
+    Args:
+        keyword (str): 検索キーワード。スペースでAND、|でORを表す
+
+    Returns:
+        tuple[str, list[str]]: SQLのWHERE句とパラメータのリスト
+    """
+    conditions = []
+    params = []
+
+    table = {"　": " ", "｜": "|", " | ": "|", " |": "|", "| ": "|", " OR ": "|"}
+    keyword = keyword.strip()
+    for old, new in table.items():
+        keyword = keyword.replace(old, new)
+
+    try:
+        split_keyword = shlex.split(keyword)
+    except ValueError:
+        split_keyword = keyword.split()
+
+    for and_word in split_keyword:
+        or_conditions = []
+        for word in and_word.split("|"):
+            or_conditions.append(single_query)
+            params.append(params_template.format(word))
+        conditions.append(f"({' OR '.join(or_conditions)})")
+
+    return conditions, params
 
 
 class SongsDatabase:
@@ -275,7 +309,7 @@ class SongsDatabase:
             conn.commit()
             return cursor.rowcount > 0
 
-    def search_songs(self, **kwargs) -> list[Song]:
+    def search_songs(self, **kwargs: dict[str, str]) -> list[Song]:
         """
         条件による楽曲検索
 
@@ -292,13 +326,38 @@ class SongsDatabase:
             if value is None:
                 continue
 
-            if key in ["title", "comment"]:
-                conditions.append(f"{key} LIKE ?")
-                params.append(f"%{value}%")
+            if key == "q":
+                free_word_conditions = []
+
+                for field in ["title", "comment"]:
+                    current_conditions, current_params = keyword_to_query(
+                        value, f"{field} LIKE ?", params_template="%{}%"
+                    )
+                    free_word_conditions.extend(current_conditions)
+                    params.extend(current_params)
+
+                for field in ["vocal", "illustrations", "movie"]:
+                    current_conditions, current_params = keyword_to_query(
+                        value, f"EXISTS (SELECT 1 FROM json_each({field}) WHERE json_each.value = ?)"
+                    )
+                    free_word_conditions.extend(current_conditions)
+                    params.extend(current_params)
+
+                if free_word_conditions:
+                    conditions.append(f"({' OR '.join(free_word_conditions)})")
+
+            elif key in ["title", "comment"]:
+                current_conditions, current_params = keyword_to_query(value, f"{key} LIKE ?", params_template="%{}%")
+                conditions.extend(current_conditions)
+                params.extend(current_params)
+
             elif key in ["vocal", "illustrations", "movie"]:
-                conditions.append(f"EXISTS (SELECT 1 FROM json_each({key}) WHERE json_each.value = ?)")
-                params.append(value)
-                # params.append(f'%"{value}"%')
+                current_conditions, current_params = keyword_to_query(
+                    value, f"EXISTS (SELECT 1 FROM json_each({key}) WHERE json_each.value = ?)"
+                )
+                conditions.extend(current_conditions)
+                params.extend(current_params)
+
             elif key in ["id", "mainChord", "mainKey", "publishedType"]:
                 conditions.append(f"{key} = ?")
                 params.append(value)
@@ -409,10 +468,11 @@ class SongsDatabase:
     def find_nearest_song(
         self,
         target: Song | str,
+        songs: Optional[list[Song]] = None,
         limit: int = 10,
         parameters: Optional[SongsCustomParameters] = None,
         is_reversed: bool = False,
-    ) -> list[SongInQueue]:
+    ) -> list[SongWithScore]:
         """曲調の似た楽曲を取得
 
         Args:
@@ -423,7 +483,7 @@ class SongsDatabase:
             ValueError: 曲が見つからない場合、またはスコア計算に必要なデータが不足している場合
 
         Returns:
-            list[Song]: 曲調の似た楽曲のリスト
+            list[SongWithScore]: 曲調の似た楽曲のリスト
         """
         if isinstance(target, str):
             target = self.get_song_by_id(target)
@@ -433,8 +493,11 @@ class SongsDatabase:
         if target.score_can_be_calculated() is False:
             raise ValueError(f"Target song (ID: {target.id}) does not have enough data to calculate score.")
 
-        queue = []
-        for song in self.get_all_songs():
+        if songs is None:
+            songs = self.get_all_songs()
+
+        queue: list[SongInQueue] = []
+        for song in songs:
             if song == target:
                 continue
 
@@ -444,4 +507,8 @@ class SongsDatabase:
             score = SongsMatchScore(song, target, self.std, parameters)
             heapq.heappush(queue, SongInQueue(song, score, is_reversed))
 
-        return [heapq.heappop(queue) for _ in range(min(limit, len(queue)))]
+        nearest_songs = [heapq.heappop(queue) for _ in range(min(limit, len(queue)))]
+        return [
+            SongWithScore(id=song_in_queue.song.id, song=song_in_queue.song, score=float(song_in_queue.score))
+            for song_in_queue in nearest_songs
+        ]

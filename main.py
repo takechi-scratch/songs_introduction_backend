@@ -14,7 +14,7 @@ from src.utils.auth import auth_initialize
 from src.utils.youtube.api import OAuthClient
 from src.utils.youtube.playlists import PlaylistManager
 from src.utils.logger import logger, discord_handler
-from src.routers import admin, general, search, songs, youtube
+from src.routers import admin, general, songs, youtube, search_old, search
 
 
 scheduler = None
@@ -110,6 +110,7 @@ app.add_middleware(
 app.include_router(admin.router)
 app.include_router(general.router)
 app.include_router(search.router)
+app.include_router(search_old.router)
 app.include_router(songs.router)
 app.include_router(youtube.router)
 
