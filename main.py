@@ -102,7 +102,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials=False,  # サーバー間通信を許可する
     allow_methods=["*"],
     allow_headers=["*"],
 )
