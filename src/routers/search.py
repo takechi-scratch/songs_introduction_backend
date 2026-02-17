@@ -5,6 +5,7 @@ from src.db.songs_database import SongsDatabase
 from src.utils.dependencies import get_db
 from src.utils.fastapi_models import SongSearchParams, SongWithScore
 from src.utils.songs import Song
+from src.utils.search import including_video_id
 
 router = APIRouter(tags=["Search"])
 
@@ -15,7 +16,14 @@ async def search(
     db: SongsDatabase = Depends(get_db),
 ):
     """キーワードがタイトル・クリエイター・歌詞などに含まれる曲を検索します。"""
-    songs = db.search_songs(q=q)
+
+    songs = []
+    video_id = await including_video_id(q)
+    if q is not None and video_id is not None:
+        songs = db.search_songs(id=video_id)
+
+    if len(songs) == 0:
+        songs = db.search_songs(q=q)
     return songs
 
 
@@ -23,8 +31,8 @@ async def search(
 async def get_nearest_songs(target_song_id: str, limit: int = Query(10, ge=1), db: SongsDatabase = Depends(get_db)):
     """指定した条件に基づいて、最も近い曲を検索します。"""
     try:
-        songs_queue = db.find_nearest_song(target_song_id, limit)
-    except ValueError as e:
+        songs_queue = db.find_nearest_song(target_song_id, limit=limit)
+    except ValueError:
         raise HTTPException(status_code=404, detail="Target song not found")
 
     if not songs_queue:
@@ -48,15 +56,23 @@ async def advanced_search(params: SongSearchParams, db: SongsDatabase = Depends(
     search_query = {}
     search_query["q"] = params.q if params.q else None
 
+    songs = []
+    video_id = await including_video_id(params.q)
+    if video_id is not None:
+        songs = db.search_songs(id=video_id)
+        if len(songs) > 0:
+            return [SongWithScore(id=song.id, song=song) for song in songs]
+
     if params.filter:
         search_query |= params.filter.model_dump(exclude_none=True)
 
     songs = db.search_songs(**search_query, order=params.order, asc=params.asc)
 
     if params.nearest is None:
-        songs = [SongWithScore(id=song.id, song=song, score=0.0) for song in songs]
+        songs = [SongWithScore(id=song.id, song=song) for song in songs]
         return songs[: params.limit] if params.limit else songs
 
+    print(len(songs))
     try:
         songs = db.find_nearest_song(
             target=params.nearest.targetSongID if params.nearest else None,

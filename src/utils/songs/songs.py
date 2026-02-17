@@ -187,17 +187,17 @@ class SongsMatchScore:
 
 
 class SongsCustomParameters(BaseModel):
-    vocal: float
-    illustrations: float
-    movie: float
-    bpm: float
-    chordRate6451: float
-    chordRate4561: float
-    pianoRate: float
-    mainKey: float
-    mainChord: float
-    modulationTimes: float
-    lyricsVector: float
+    vocal: float = 0.0
+    illustrations: float = 0.0
+    movie: float = 0.0
+    bpm: float = 0.0
+    chordRate6451: float = 0.0
+    chordRate4561: float = 0.0
+    pianoRate: float = 0.0
+    mainKey: float = 0.0
+    mainChord: float = 0.0
+    modulationTimes: float = 0.0
+    lyricsVector: float = 0.0
     a: Optional[float] = None
 
     def __init__(self, **data):

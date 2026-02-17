@@ -327,24 +327,14 @@ class SongsDatabase:
                 continue
 
             if key == "q":
-                free_word_conditions = []
-
-                for field in ["title", "comment"]:
-                    current_conditions, current_params = keyword_to_query(
-                        value, f"{field} LIKE ?", params_template="%{}%"
-                    )
-                    free_word_conditions.extend(current_conditions)
-                    params.extend(current_params)
-
-                for field in ["vocal", "illustrations", "movie"]:
-                    current_conditions, current_params = keyword_to_query(
-                        value, f"EXISTS (SELECT 1 FROM json_each({field}) WHERE json_each.value = ?)"
-                    )
-                    free_word_conditions.extend(current_conditions)
-                    params.extend(current_params)
-
-                if free_word_conditions:
-                    conditions.append(f"({' OR '.join(free_word_conditions)})")
+                current_conditions, current_params = keyword_to_query(
+                    value,
+                    f"title LIKE ? OR comment LIKE ? OR EXISTS (SELECT 1 FROM json_each(vocal) WHERE json_each.value = ?) OR EXISTS (SELECT 1 FROM json_each(illustrations) WHERE json_each.value = ?) OR EXISTS (SELECT 1 FROM json_each(movie) WHERE json_each.value = ?)",
+                    params_template="{}",
+                )
+                conditions.extend(current_conditions)
+                for param in current_params:
+                    params.extend([f"%{param}%"] * 2 + [param] * 3)
 
             elif key in ["title", "comment"]:
                 current_conditions, current_params = keyword_to_query(value, f"{key} LIKE ?", params_template="%{}%")
