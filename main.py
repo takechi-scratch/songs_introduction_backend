@@ -94,10 +94,15 @@ config = config_store._config
 if config is None:
     raise RuntimeError("Config not initialized.")
 
-origins = [
-    config.production_url if config.production_url else "http://localhost:3000",
-    "http://localhost:8787",
-]
+origins = (
+    config.production_url
+    if config.production_url
+    else []
+    + [
+        "http://localhost:3000",
+        "http://localhost:8787",
+    ]
+)
 
 app.add_middleware(
     CORSMiddleware,
