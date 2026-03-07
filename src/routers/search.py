@@ -3,9 +3,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.params import Query
 from src.db.songs_database import SongsDatabase
 from src.utils.dependencies import get_db
-from src.utils.fastapi_models import SongSearchParams, SongWithScore
-from src.utils.songs import Song
+from src.utils.fastapi_models import SongSampleParams, SongSearchParams, SongWithScore
+from src.utils.songs import Song, SongsMatchScore
 from src.utils.search import including_video_id
+
+import random
 
 router = APIRouter(tags=["Search"])
 
@@ -88,3 +90,49 @@ async def advanced_search(params: SongSearchParams, db: SongsDatabase = Depends(
         raise HTTPException(status_code=404, detail="No similar songs found")
 
     return songs
+
+
+@router.post("/songs-sample/", response_model=list[Song])
+async def get_songs_sample(params: SongSampleParams, db: SongsDatabase = Depends(get_db)):
+    """最大分散サンプリングを用いて、おすすめ曲診断用のサンプルを取得します。"""
+    similarity_cache: dict[tuple[str, str], float] = {}
+    INF = 10**18
+    noise = 0.05
+
+    def get_similarity(song1: Song, song2: Song) -> float:
+        if song1.id == song2.id:
+            return 1.0
+
+        if song1.id > song2.id:
+            song1, song2 = song2, song1
+        pair = (song1.id, song2.id)
+        if pair not in similarity_cache:
+            similarity_cache[pair] = SongsMatchScore(song1, song2, db.std).get_score()
+        return similarity_cache[pair]
+
+    if params.filter:
+        search_query = params.filter.model_dump(exclude_none=True)
+    else:
+        search_query = {}
+
+    all_songs = db.search_songs(**search_query)
+    all_songs = [song for song in all_songs if song.score_can_be_calculated()]
+    if not params.includeInstSongs:
+        all_songs = [song for song in all_songs if len(song.vocal) > 0 and song.vocal[0] != "-"]
+
+    if len(all_songs) <= params.limit:
+        return all_songs
+
+    samples = [random.choice(all_songs)]
+    while len(samples) < params.limit:
+        next_song = min(
+            all_songs,
+            key=lambda song: (
+                max(get_similarity(song, sample) for sample in samples) + noise * random.random()
+                if song not in samples
+                else INF
+            ),
+        )
+        samples.append(next_song)
+
+    return samples

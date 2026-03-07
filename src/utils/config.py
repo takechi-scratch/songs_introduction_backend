@@ -16,7 +16,7 @@ class Config(BaseModel):
     youtube_data_api_key: str
     official_channel_id: str
     is_production: bool
-    production_url: str | None = None
+    production_url: list[str] | None = None
     youtube_oauth_refresh_token: str | None = None
     youtube_oauth_client_id: str
     youtube_oauth_client_secret: str

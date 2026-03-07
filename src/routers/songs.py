@@ -71,6 +71,22 @@ async def upsert_song(
     return db.get_song_by_id(song_id)
 
 
+@router.delete("/songs/{song_id}/")
+async def delete_song(song_id: str, cred: dict = Depends(get_current_user), db: SongsDatabase = Depends(get_db)):
+    """曲を削除します。"""
+    if not cred.get("admin", False) or cred.get("editor", False):
+        raise HTTPException(status_code=403, detail="Not authorized to perform this action")
+
+    if db.get_song_by_id(song_id) is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    result = db.delete_song(song_id)
+    if result:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to delete song")
+
+
 @router.post("/lyrics-vector/")
 async def update_lyrics_vector(
     songs_lyrics_vec: list[UpsertLyricsVec],

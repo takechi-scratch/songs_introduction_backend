@@ -59,9 +59,11 @@ class UpsertSong(BaseModel):
 
 
 class CreatePlaylistRequest(BaseModel):
-    title: str = Field(..., description="プレイリストのタイトル", example="MIMIさん曲まとめ")
-    description: str = Field("", description="プレイリストの説明", example="「MIMIさん全曲紹介」で自動作成されました。")
-    video_ids: list[str] = Field(..., description="追加する動画のIDリスト", example=["7xht3kQO_TM"])
+    title: str = Field(..., description="プレイリストのタイトル", examples=["MIMIさん曲まとめ"])
+    description: str = Field(
+        "", description="プレイリストの説明", examples=["「MIMIさん全曲紹介」で自動作成されました。"]
+    )
+    video_ids: list[str] = Field(..., description="追加する動画のIDリスト", examples=[["7xht3kQO_TM"]])
 
 
 class UpsertLyricsVec(BaseModel):
@@ -140,10 +142,16 @@ class SongSearchParams(BaseModel):
     )
     filter: Optional[SongFilters] = Field(default=None, description="曲の絞り込み条件")
     nearest: Optional[SongNearestQuery] = Field(default=None, description="類似曲検索の条件")
-    limit: Optional[int] = Field(default=None, ge=1, description="取得する曲の最大数", examples=10)
+    limit: Optional[int] = Field(default=None, ge=1, description="取得する曲の最大数", examples=[10])
     order: Optional[SortableKey] = Field(
         default=None,
         description="並び替えの基準項目（nearestを指定した場合はsimilarityScoreのみ指定可能）",
         examples=["publishedTimestamp", "similarityScore"],
     )
     asc: Optional[bool] = Field(default=False, description="昇順・降順の指定", examples=[False, True])
+
+
+class SongSampleParams(BaseModel):
+    filter: Optional[SongFilters] = Field(default=None, description="曲の絞り込み条件")
+    limit: Optional[int] = Field(default=10, ge=1, description="取得する曲の最大数", examples=[10])
+    includeInstSongs: bool = Field(default=False, description="インスト曲を含めるかどうか")
