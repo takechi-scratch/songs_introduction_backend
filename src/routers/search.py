@@ -5,7 +5,7 @@ from src.db.songs_database import SongsDatabase
 from src.utils.dependencies import get_db
 from src.utils.fastapi_models import SongSampleParams, SongSearchParams, SongWithScore
 from src.utils.songs import Song, SongsMatchScore
-from src.utils.search import including_video_id
+from src.utils.extraction import including_video_id
 
 import random
 

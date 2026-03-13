@@ -6,6 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+from src.db.comment_database import CommentsDatabase
+from src.db.user_database import UsersDatabase
 from src.db.songs_database import SongsDatabase
 from src.db.update_youtube_data import regist_scheduler
 from src.discordbot.bot import BackendDiscordClient, default_intents
@@ -14,7 +16,7 @@ from src.utils.auth import auth_initialize
 from src.utils.youtube.api import OAuthClient
 from src.utils.youtube.playlists import PlaylistManager
 from src.utils.logger import logger, discord_handler
-from src.routers import admin, general, songs, youtube, search_old, search
+from src.routers import admin, general, songs, youtube, search_old, search, interaction
 
 
 scheduler = None
@@ -24,6 +26,8 @@ scheduler = None
 async def lifespan(app: FastAPI):
     global scheduler
     app.state.db = SongsDatabase("data/songs.db")
+    app.state.users_db = UsersDatabase("data/songs.db")
+    app.state.comments_db = CommentsDatabase("data/songs.db")
     scheduler = regist_scheduler(app.state.db)
 
     auth_initialize()
@@ -64,6 +68,10 @@ tags_metadata = [
     {
         "name": "YouTube",
         "description": "YouTube関連の操作",
+    },
+    {
+        "name": "Interaction",
+        "description": "ユーザーのリアクション",
     },
     {"name": "Admin", "description": "管理者用(認証が必要)"},
 ]
@@ -118,6 +126,7 @@ app.include_router(search.router)
 app.include_router(search_old.router)
 app.include_router(songs.router)
 app.include_router(youtube.router)
+app.include_router(interaction.router)
 
 if __name__ == "__main__":
     if config.is_production:

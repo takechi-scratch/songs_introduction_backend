@@ -155,3 +155,13 @@ class SongSampleParams(BaseModel):
     filter: Optional[SongFilters] = Field(default=None, description="曲の絞り込み条件")
     limit: Optional[int] = Field(default=10, ge=1, description="取得する曲の最大数", examples=[10])
     includeInstSongs: bool = Field(default=False, description="インスト曲を含めるかどうか")
+
+
+class PostCommentRequest(BaseModel):
+    content: str = Field(..., max_length=2000, description="コメントの内容", examples=["大好きな曲！", "ノリが良い！"])
+
+
+class UpdateCommentRequest(BaseModel):
+    content: str = Field(
+        ..., max_length=2000, description="更新後のコメントの内容", examples=["大好きな曲！", "ノリが良い！"]
+    )

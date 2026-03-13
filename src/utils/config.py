@@ -12,6 +12,9 @@ with open("assets/docs_description.md", "r", encoding="utf-8") as f:
     docs_description = f.read()
 
 
+privileged_user_keywords = {"admin", "editor", "管理者", "編集者", "公式", "運営", "スタッフ"}
+
+
 class Config(BaseModel):
     youtube_data_api_key: str
     official_channel_id: str

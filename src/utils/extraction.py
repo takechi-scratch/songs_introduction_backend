@@ -1,6 +1,10 @@
 from urllib import parse
+import re
 
 from src.utils.config import ConfigStore
+
+url_pattern = re.compile(r"https?://[A-Za-z0-9_!?/+\-_~;.,*&@#$%()'[\]]+")
+markdown_link_pattern = re.compile(r"(\[([^\]]+)\]\(https?://[A-Za-z0-9_!?/+\-_~;.,*&@#$%()'[\]]+\))")
 
 
 async def including_video_id(text: str | None) -> str | None:
@@ -41,3 +45,17 @@ async def including_video_id(text: str | None) -> str | None:
         return text
 
     return None
+
+
+def sanitize_links(text: str, replaced_message: str = "[リンク非表示]") -> str:
+    """Extracts all URLs from the given text."""
+
+    markdown_urls = markdown_link_pattern.findall(text)
+    for link_all, link_text in markdown_urls:
+        text = text.replace(link_all, link_text)
+
+    urls = url_pattern.findall(text)
+    for url in urls:
+        text = text.replace(url, replaced_message)
+
+    return text
