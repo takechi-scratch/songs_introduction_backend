@@ -96,7 +96,7 @@ class CommentsDatabase:
                 SELECT id, songID, userID, content, created_at, updated_at, visible
                 FROM comments
                 WHERE songID = ? AND visible = 1
-                ORDER BY created_at ASC
+                ORDER BY created_at DESC
             """,
                 (song_id,),
             )
