@@ -115,6 +115,33 @@ class CommentsDatabase:
                 for row in rows
             ]
 
+    def get_comments_by_user(self, user_id: str) -> list[Comment]:
+        """ユーザーIDに紐づくコメントを取得"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, songID, userID, content, created_at, updated_at, visible
+                FROM comments
+                WHERE userID = ? AND visible = 1
+                ORDER BY created_at DESC
+            """,
+                (user_id,),
+            )
+            rows = cursor.fetchall()
+            users = self.user_db.get_users_by_ids([row[2] for row in rows])
+
+            return [
+                Comment(
+                    id=row[0],
+                    songID=row[1],
+                    user=users.get(row[2]),
+                    content=row[3],
+                    createdAt=row[4],
+                    updatedAt=row[5],
+                )
+                for row in rows
+            ]
+
     def update_comment(self, comment_id: str, new_content: str):
         """コメント内容を更新"""
         with sqlite3.connect(self.db_path) as conn:

@@ -21,6 +21,18 @@ async def get_user(users_db: UsersDatabase = Depends(get_users_db), cred: dict =
     return users_db.get_user(uid)
 
 
+@router.get("/users/me/comments/", response_model=list[Comment])
+async def get_user_comments(
+    comments_db: CommentsDatabase = Depends(get_comments_db),
+    users_db: UsersDatabase = Depends(get_users_db),
+    cred: dict = Depends(get_current_user),
+):
+    """現在認証済みのユーザーが投稿したコメントを取得します。"""
+    uid: str = cred.get("uid", "")
+    user = users_db.get_user(uid)
+    return comments_db.get_comments_by_user(user.id)
+
+
 @router.post("/users/me/")
 async def update_user(
     user: UpdateUser, users_db: UsersDatabase = Depends(get_users_db), cred: dict = Depends(get_current_user)
