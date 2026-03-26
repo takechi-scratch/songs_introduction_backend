@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.discordbot.bot import BackendDiscordClient
 from src.db.comment_database import Comment, CommentsDatabase
 from src.db.user_database import UsersDatabase
 from src.utils.auth import get_current_user, get_firebase_users
-from src.utils.dependencies import get_comments_db, get_users_db
+from src.utils.dependencies import get_comments_db, get_discord_client, get_users_db
 from src.utils.user_models import UpdateUser, User
 from src.utils.config import privileged_user_keywords
 from src.utils.fastapi_models import PostCommentRequest, UpdateCommentRequest
@@ -75,6 +76,7 @@ async def add_comment(
     comment: PostCommentRequest,
     comments_db: CommentsDatabase = Depends(get_comments_db),
     users_db: UsersDatabase = Depends(get_users_db),
+    bot: BackendDiscordClient = Depends(get_discord_client),
     cred: dict = Depends(get_current_user),
 ):
     """指定した曲にコメントを投稿します。"""
@@ -83,6 +85,10 @@ async def add_comment(
 
     comment = Comment(songID=songID, user=user, content=comment.content)
     comments_db.add_comment(comment)
+
+    await bot.default_channel.send(
+        f"新しいコメントが投稿されました\n表示名: {user.displayName or 'なし'} 曲ID: {songID}\n{comment.content}"
+    )
     return comment
 
 
@@ -111,6 +117,7 @@ async def update_comment(
     new_comment: UpdateCommentRequest,
     comments_db: CommentsDatabase = Depends(get_comments_db),
     users_db: UsersDatabase = Depends(get_users_db),
+    bot: BackendDiscordClient = Depends(get_discord_client),
     cred: dict = Depends(get_current_user),
 ):
     """指定したコメントの内容を編集します。"""
@@ -123,4 +130,8 @@ async def update_comment(
     if comment.user.id != user.id and not cred.get("admin", False):
         raise HTTPException(status_code=403, detail="Not authorized to perform this action")
     comments_db.update_comment(comment_id, new_comment.content)
+
+    await bot.default_channel.send(
+        f"コメントが更新されました\n表示名: {user.displayName or 'なし'} 曲ID: {comment.songID}\n{comment.content}"
+    )
     return comment
