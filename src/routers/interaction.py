@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.discordbot.bot import BackendDiscordClient
@@ -86,8 +88,10 @@ async def add_comment(
     comment = Comment(songID=songID, user=user, content=comment.content)
     comments_db.add_comment(comment)
 
-    await bot.default_channel.send(
-        f"新しいコメントが投稿されました\n表示名: {user.displayName or 'なし'} 曲ID: {songID}\n{comment.content}"
+    asyncio.create_task(
+        bot.default_channel.send(
+            f"新しいコメントが投稿されました\n表示名: {user.displayName or 'なし'} 曲ID: {songID}\n{comment.content}"
+        )
     )
     return comment
 
@@ -131,7 +135,9 @@ async def update_comment(
         raise HTTPException(status_code=403, detail="Not authorized to perform this action")
     comments_db.update_comment(comment_id, new_comment.content)
 
-    await bot.default_channel.send(
-        f"コメントが更新されました\n表示名: {user.displayName or 'なし'} 曲ID: {comment.songID}\n{comment.content}"
+    asyncio.create_task(
+        bot.default_channel.send(
+            f"コメントが更新されました\n表示名: {user.displayName or 'なし'} 曲ID: {comment.songID}\n{comment.content}"
+        )
     )
     return comment
