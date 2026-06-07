@@ -1,17 +1,21 @@
 import asyncio
+import time
+from typing import Any
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket
 
 from src.discordbot.bot import BackendDiscordClient
 from src.db.comment_database import Comment, CommentsDatabase
 from src.db.user_database import UsersDatabase
 from src.utils.auth import get_current_user, get_firebase_users
+from firebase_admin import auth as firebase_auth
 from src.utils.dependencies import get_comments_db, get_discord_client, get_users_db
 from src.utils.user_models import UpdateUser, User
 from src.utils.config import privileged_user_keywords
 from src.utils.fastapi_models import PostCommentRequest, UpdateCommentRequest
 from src.utils.extraction import sanitize_links
-
+from src.utils.logger import logger
 
 router = APIRouter(tags=["Interaction"])
 
@@ -141,3 +145,155 @@ async def update_comment(
         )
     )
     return comment
+
+
+class ConnectionManager:
+    def __init__(self, users_db: UsersDatabase):
+        self.users_db = users_db
+        self.active_connections: list[WebSocket] = []
+        self.active_user: list[tuple[bool, User]] = []
+
+    async def connect(self, websocket: WebSocket, uid: str = "", is_admin: bool = False):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        user = self.users_db.get_user(uid)
+        self.active_user.append((is_admin, user))
+        for other_websocket, (is_admin, _) in zip(self.active_connections, self.active_user):
+            if not is_admin:
+                continue
+
+            await self.send_personal_message(
+                {
+                    "type": "info",
+                    "timestamp": int(time.time()),
+                    "author": user.model_dump(),
+                    "content": "connected",
+                },
+                other_websocket,
+            )
+
+        logger.info(f"WebSocket connected: {user.displayName or 'No Display Name'} (Admin: {is_admin})")
+
+    async def disconnect(self, websocket: WebSocket):
+        i = self.active_connections.index(websocket)
+        user, is_admin = self.active_user[i][1], self.active_user[i][0]
+        for other_websocket, (is_admin, _) in zip(self.active_connections, self.active_user):
+            if not is_admin:
+                continue
+
+            if other_websocket == websocket:
+                continue
+
+            await self.send_personal_message(
+                {
+                    "type": "info",
+                    "timestamp": int(time.time()),
+                    "author": self.active_user[i][1].model_dump(),
+                    "content": "disconnected",
+                },
+                other_websocket,
+            )
+
+        self.active_connections.pop(i)
+        self.active_user.pop(i)
+
+        logger.info(f"WebSocket disconnected: {user.displayName or 'No Display Name'} (Admin: {is_admin})")
+
+    async def send_personal_message(self, message: Any, websocket: WebSocket):
+        await websocket.send_json(message)
+
+    async def broadcast(self, message: Any):
+        for connection in list(self.active_connections):
+            try:
+                await connection.send_json(message)
+            except Exception:
+                if connection in self.active_connections:
+                    index = self.active_connections.index(connection)
+                    self.active_connections.pop(index)
+                    self.active_user.pop(index)
+
+
+# `manager` をモジュール初期化時に `Depends` のまま渡すと動作しないため
+# インスタンス化時は `None` にし、WebSocket ハンドラ内で実際の DB を注入します。
+manager = ConnectionManager(users_db=None)
+
+
+@router.websocket("/share-chat/ws")
+@router.websocket("/share-chat/ws/")
+async def chat_ws_endpoint(
+    websocket: WebSocket,
+    token: str | None = None,
+    users_db: UsersDatabase = Depends(get_users_db),
+    bot: BackendDiscordClient = Depends(get_discord_client),
+):
+    if not token:
+        logger.warning("WebSocket rejected: authentication token is missing")
+        await websocket.close(code=1008, reason="Authentication required")
+        return
+
+    try:
+        cred = firebase_auth.verify_id_token(token)
+    except Exception:
+        logger.warning("WebSocket rejected: invalid authentication token")
+        await websocket.close(code=1008, reason="Invalid authentication credentials")
+        return
+
+    uid = cred.get("uid", "")
+    is_admin = cred.get("admin", False)
+
+    # 実際の UsersDatabase インスタンスを ConnectionManager に注入してから接続
+    manager.users_db = users_db
+    await manager.connect(websocket, uid=uid, is_admin=is_admin)
+
+    try:
+        async for data in websocket.iter_json():
+            if data.get("type") not in ["post", "delete"]:
+                await websocket.close(code=1003, reason="Invalid message type")
+                break
+
+            if data.get("type") == "post":
+                content = data.get("content", "")
+                if not content or len(content) > 140:
+                    await websocket.close(code=1003, reason="Content must be between 1 and 140 characters")
+                    break
+
+                user = users_db.get_user(cred.get("uid", ""))
+                chatID = str(uuid.uuid4())
+                await manager.broadcast(
+                    {
+                        "type": "post",
+                        "timestamp": int(time.time()),
+                        "chatID": chatID,
+                        "author": user.model_dump(),
+                        "content": content,
+                    }
+                )
+
+                asyncio.create_task(
+                    bot.default_channel.send(
+                        f"新しいチャットメッセージが投稿されました\n表示名: {user.displayName or 'なし'}\n{content}"
+                    )
+                )
+
+                logger.info(f"New chat message posted by {user.displayName or 'No Display Name'}: {content}")
+
+            else:
+                chatID = data.get("chatID", "")
+                if not chatID:
+                    await websocket.close(code=1003, reason="chatID is required for delete")
+                    break
+
+                if not is_admin:
+                    await websocket.close(code=1008, reason="Not authorized to perform this action")
+                    break
+
+                await manager.broadcast(
+                    {
+                        "type": "delete",
+                        "chatID": chatID,
+                    }
+                )
+                logger.info(f"Chat message deleted: {chatID}")
+    finally:
+        if websocket in manager.active_connections:
+            await manager.disconnect(websocket)
