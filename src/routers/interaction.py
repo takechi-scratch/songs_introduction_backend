@@ -152,11 +152,13 @@ class ConnectionManager:
         self.users_db = users_db
         self.active_connections: list[WebSocket] = []
         self.active_user: list[tuple[bool, User] | None] = []
+        self.history = []
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
         self.active_user.append(None)  # ユーザーデータは後で取得するため一旦 None を追加
+        await websocket.send_json({"type": "history", "messages": self.history[-20:]})  # 最新20件の履歴を送信
         logger.info("WebSocket connection established")
 
     async def authenticate(self, websocket: WebSocket, uid: str = "", is_admin: bool = False):
@@ -296,15 +298,16 @@ async def chat_ws_endpoint(
 
                 is_admin, user = manager.active_user[i]
                 chatID = str(uuid.uuid4())
-                await manager.broadcast(
-                    {
-                        "type": "post",
-                        "timestamp": int(time.time()),
-                        "chatID": chatID,
-                        "author": user.model_dump(),
-                        "content": content,
-                    }
-                )
+                chat_message = {
+                    "type": "post",
+                    "timestamp": int(time.time()),
+                    "chatID": chatID,
+                    "author": user.model_dump(),
+                    "content": content,
+                }
+
+                manager.history.append(chat_message)
+                await manager.broadcast(chat_message)
 
                 asyncio.create_task(
                     bot.default_channel.send(
@@ -338,6 +341,7 @@ async def chat_ws_endpoint(
                     await websocket.close(code=1008, reason="Not authorized to perform this action")
                     break
 
+                manager.history = [msg for msg in manager.history if msg.get("chatID") != chatID]
                 await manager.broadcast(
                     {
                         "type": "delete",
