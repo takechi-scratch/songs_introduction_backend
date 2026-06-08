@@ -221,8 +221,11 @@ class ConnectionManager:
         if self.active_user[self.active_connections.index(websocket)] is None:
             logger.warning("Attempted to send message to unauthenticated WebSocket connection")
             return
-
-        await websocket.send_json(message)
+        
+        try:
+            await websocket.send_json(message)
+        except Exception:
+            logger.warning("Error in sending personal message")
 
     async def broadcast(self, message: Any):
         for connection in list(self.active_connections):
