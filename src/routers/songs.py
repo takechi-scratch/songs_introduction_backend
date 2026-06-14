@@ -6,7 +6,6 @@ from src.utils.dependencies import get_db
 from src.utils.fastapi_models import UpsertLyricsVec, UpsertSong
 from src.utils.songs import Song
 
-
 router = APIRouter(tags=["Songs"])
 
 
@@ -68,7 +67,8 @@ async def upsert_song(
     else:
         db.add_song(song)
 
-    return db.get_song_by_id(song_id)
+    # 更新後のIDから曲情報を取得
+    return db.get_song_by_id(song.id)
 
 
 @router.delete("/songs/{song_id}/")

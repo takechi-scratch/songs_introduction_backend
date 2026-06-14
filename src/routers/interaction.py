@@ -190,27 +190,32 @@ class ConnectionManager:
 
     async def disconnect(self, websocket: WebSocket):
         i = self.active_connections.index(websocket)
-        user, is_admin = self.active_user[i][1], self.active_user[i][0]
-        for other_websocket, ws_user in zip(self.active_connections, self.active_user):
-            if ws_user is None:
-                continue
-            is_admin, _ = ws_user
+        if self.active_user[i] is not None:
+            user, is_admin = self.active_user[i][1], self.active_user[i][0]
+            for other_websocket, ws_user in zip(self.active_connections, self.active_user):
+                if ws_user is None:
+                    continue
+                to_is_admin, _ = ws_user
 
-            if not is_admin:
-                continue
+                if not to_is_admin:
+                    continue
 
-            if other_websocket == websocket:
-                continue
+                if other_websocket == websocket:
+                    continue
 
-            await self.send_personal_message(
-                {
-                    "type": "info",
-                    "timestamp": int(time.time()),
-                    "author": user.model_dump(),
-                    "content": "disconnected",
-                },
-                other_websocket,
-            )
+                await self.send_personal_message(
+                    {
+                        "type": "info",
+                        "timestamp": int(time.time()),
+                        "author": user.model_dump(),
+                        "content": "disconnected",
+                    },
+                    other_websocket,
+                )
+
+            logger.info(f"WebSocket disconnected: {user.displayName or 'No Display Name'} (Admin: {is_admin})")
+        else:
+            logger.warning("WebSocket disconnected before authentication")
 
         self.active_connections.pop(i)
         self.active_user.pop(i)
@@ -221,7 +226,7 @@ class ConnectionManager:
         if self.active_user[self.active_connections.index(websocket)] is None:
             logger.warning("Attempted to send message to unauthenticated WebSocket connection")
             return
-        
+
         try:
             await websocket.send_json(message)
         except Exception:
