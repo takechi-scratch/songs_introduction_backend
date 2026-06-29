@@ -1,3 +1,5 @@
+import time
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import firebase_admin
@@ -42,14 +44,26 @@ def get_firebase_user(uid: str):
     return UserFromFirebase(firebaseUID=user.uid, IconURL=user.photo_url, isGuest=bool(len(user.provider_data) == 0))
 
 
+firebase_users_cache = None
+firebase_users_cache_timestamp = 0
+
+
 # TODO: TTL付きのキャッシュを実装
 def get_firebase_users() -> list[UserFromFirebase]:
-    users = []
-    for user in auth.list_users().iterate_all():
-        users.append(
-            UserFromFirebase(firebaseUID=user.uid, IconURL=user.photo_url, isGuest=bool(len(user.provider_data) == 0))
-        )
-    return users
+    global firebase_users_cache, firebase_users_cache_timestamp
+
+    if firebase_users_cache is None or time.time() - firebase_users_cache_timestamp > 300:  # 5分ごとに更新
+        users = []
+        for user in auth.list_users().iterate_all():
+            users.append(
+                UserFromFirebase(
+                    firebaseUID=user.uid, IconURL=user.photo_url, isGuest=bool(len(user.provider_data) == 0)
+                )
+            )
+        firebase_users_cache = users
+        firebase_users_cache_timestamp = time.time()
+
+    return firebase_users_cache
 
 
 if __name__ == "__main__":

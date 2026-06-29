@@ -1,7 +1,7 @@
 import sqlite3
 from typing import Iterable
 from src.utils.user_models import User, UserFromDB
-from src.utils.auth import get_firebase_user, get_firebase_users
+from src.utils.auth import get_firebase_user, get_firebase_users, firebase_users_cache
 
 
 class UsersDatabase:
@@ -18,16 +18,14 @@ class UsersDatabase:
     def init_database(self):
         """データベースとテーブルを初期化"""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     firebaseUID TEXT PRIMARY KEY,
                     id TEXT NOT NULL UNIQUE,
                     displayName TEXT,
                     useProvidedIcon INTEGER NOT NULL DEFAULT 0
                 );
-            """
-            )
+            """)
             conn.commit()
 
     def add_user(self, user: UserFromDB):
@@ -41,6 +39,8 @@ class UsersDatabase:
                 (user.id, user.firebaseUID, user.displayName, int(user.useProvidedIcon)),
             )
             conn.commit()
+
+        firebase_users_cache = None
 
     def get_user(self, firebase_uid: str) -> User:
         """ユーザーを取得"""
@@ -101,12 +101,10 @@ class UsersDatabase:
     def get_user_firebase_uids(self) -> dict[str, str]:
         """ユーザーIDとFirebase UIDの対応を取得"""
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute(
-                """
+            cursor = conn.execute("""
                 SELECT id, firebaseUID
                 FROM users
-            """
-            )
+            """)
             rows = cursor.fetchall()
 
         return {row[0]: row[1] for row in rows}
